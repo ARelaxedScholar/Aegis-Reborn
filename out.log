@@ -1,0 +1,55 @@
+    Checking aegis-reborn v0.1.0 (/home/arelaxedscholar/Documents/Coding/aegis-reborn)
+warning: unused import: `crate::vm::op::Op`
+ --> src/evaluation/backtester.rs:4:5
+  |
+4 | use crate::vm::op::Op;
+  |     ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `IndicatorType`
+ --> src/vm/engine.rs:1:21
+  |
+1 | use crate::vm::op::{IndicatorType, Op, PriceType};
+  |                     ^^^^^^^^^^^^^
+
+error[E0609]: no field `indicators` on type `&mut VmContext`
+  --> src/evaluation/indicators.rs:48:21
+   |
+48 |             context.indicators.insert(IndicatorType::Sma(*period), sma.next_peek());
+   |                     ^^^^^^^^^^ unknown field
+   |
+   = note: available fields are: `open`, `high`, `low`, `close`
+
+error[E0599]: no method named `next_peek` found for reference `&SimpleMovingAverage` in the current scope
+  --> src/evaluation/indicators.rs:48:72
+   |
+48 |             context.indicators.insert(IndicatorType::Sma(*period), sma.next_peek());
+   |                                                                        ^^^^^^^^^ method not found in `&SimpleMovingAverage`
+
+error[E0609]: no field `indicators` on type `&mut VmContext`
+  --> src/evaluation/indicators.rs:51:21
+   |
+51 |             context.indicators.insert(IndicatorType::Rsi(*period), rsi.next_peek());
+   |                     ^^^^^^^^^^ unknown field
+   |
+   = note: available fields are: `open`, `high`, `low`, `close`
+
+error[E0599]: no method named `next_peek` found for reference `&RelativeStrengthIndex` in the current scope
+  --> src/evaluation/indicators.rs:51:72
+   |
+51 |             context.indicators.insert(IndicatorType::Rsi(*period), rsi.next_peek());
+   |                                                                        ^^^^^^^^^ method not found in `&RelativeStrengthIndex`
+
+warning: unused variable: `genome`
+  --> src/evolution/mapper.rs:26:23
+   |
+26 |     pub fn map(&self, genome: &Genome) -> Result<Strategy, MappingError> {
+   |                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_genome`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+Some errors have detailed explanations: E0599, E0609.
+For more information about an error, try `rustc --explain E0599`.
+warning: `aegis-reborn` (lib) generated 3 warnings
+error: could not compile `aegis-reborn` (lib) due to 4 previous errors; 3 warnings emitted

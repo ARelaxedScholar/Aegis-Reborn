@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Op {
     // --- Data Loading & State Management ---
     PushConstant(f64),
@@ -30,9 +30,12 @@ pub enum Op {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PriceType {
     Close,
+    High,
+    Low,
+    Open,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IndicatorType {
     Sma(u16),
     Rsi(u16),

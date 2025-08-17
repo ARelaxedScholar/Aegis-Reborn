@@ -1,14 +1,17 @@
-// src/vm/engine.rs
+use crate::vm::op::{IndicatorType, Op, PriceType};
+use std::collections::HashMap;
 
-//! The core execution engine for Aegis strategies.
-//! This module defines the Virtual Machine (VM) that runs the bytecode.
+const STACK_CAPACITY: usize = 256;
+const MEMORY_SIZE: usize = 16;
 
-use crate::vm::op::{IndicatorType, Op, PriceType}; // Correctly import dependencies
+pub struct VmContext {
+    pub open: f64,
+    pub high: f64,
+    pub low: f64,
+    pub close: f64,
+    pub indicators: HashMap<IndicatorType, f64>,
+}
 
-const STACK_CAPACITY: usize = 256; // Max depth of the stack
-const MEMORY_SIZE: usize = 16; // Number of f64 slots for strategy state
-
-/// Defines errors that can occur during VM execution.
 #[derive(Debug, PartialEq)]
 pub enum VmError {
     StackOverflow,
@@ -17,15 +20,12 @@ pub enum VmError {
     InvalidProgram,
 }
 
-/// The Aegis Virtual Machine.
-/// It is a simple, stack-based machine designed for performance and safety.
 pub struct VirtualMachine {
     stack: Vec<f64>,
     memory: [f64; MEMORY_SIZE],
 }
 
 impl VirtualMachine {
-    /// Creates a new, clean instance of the VM.
     pub fn new() -> Self {
         Self {
             stack: Vec::with_capacity(STACK_CAPACITY),
@@ -33,18 +33,24 @@ impl VirtualMachine {
         }
     }
 
-    /// Executes a bytecode program.
-    pub fn execute(&mut self, program: &[Op]) -> Result<f64, VmError> {
+    pub fn execute(&mut self, program: &[Op], context: &VmContext) -> Result<f64, VmError> {
         self.stack.clear();
         let mut pc = 0;
 
         while pc < program.len() {
             let op = &program[pc];
             pc += 1;
-
             match op {
                 Op::PushConstant(val) => self.push(*val)?,
-
+                Op::PushPrice(price_type) => {
+                    let val = match price_type {
+                        PriceType::Open => context.open,
+                        PriceType::High => context.high,
+                        PriceType::Low => context.low,
+                        PriceType::Close => context.close,
+                    };
+                    self.push(val)?;
+                }
                 Op::Store(idx) => {
                     let val = self.pop()?;
                     if let Some(mem_slot) = self.memory.get_mut(*idx as usize) {
@@ -60,7 +66,6 @@ impl VirtualMachine {
                         return Err(VmError::MemoryOutOfBounds(*idx));
                     }
                 }
-
                 Op::Add => self.apply_binary_op(|a, b| a + b)?,
                 Op::Subtract => self.apply_binary_op(|a, b| a - b)?,
                 Op::Multiply => self.apply_binary_op(|a, b| a * b)?,
@@ -73,7 +78,6 @@ impl VirtualMachine {
                         self.push(a / b)?;
                     }
                 }
-
                 Op::GreaterThan => self.apply_binary_op(|a, b| (a > b) as i32 as f64)?,
                 Op::LessThan => self.apply_binary_op(|a, b| (a < b) as i32 as f64)?,
                 Op::GreaterThanOrEqual => self.apply_binary_op(|a, b| (a >= b) as i32 as f64)?,
@@ -85,22 +89,22 @@ impl VirtualMachine {
                     let val = self.pop()?;
                     self.push((val == 0.0) as i32 as f64)?;
                 }
-
-                Op::PushPrice(_) | Op::PushIndicator(_) => {
-                    // Placeholder: The backtester is responsible for loading context.
-                    self.push(0.0)?;
+                Op::PushIndicator(indicator_type) => {
+                    let val = context
+                        .indicators
+                        .get(indicator_type)
+                        .copied()
+                        .unwrap_or(f64::NAN);
+                    self.push(val)?;
                 }
-
                 Op::JumpIfFalse(_) | Op::Jump(_) => {
                     unimplemented!(
                         "Control flow opcodes are not yet implemented in the 'Crawl' phase VM."
                     )
                 }
-
                 Op::Return => break,
             }
         }
-
         self.pop().or(Err(VmError::InvalidProgram))
     }
 
@@ -130,17 +134,26 @@ impl VirtualMachine {
     }
 }
 
-// --- Unit Tests ---
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::vm::op::Op::*;
 
+    fn dummy_context() -> VmContext {
+        VmContext {
+            open: 95.0,
+            high: 105.0,
+            low: 90.0,
+            close: 100.0,
+            indicators: HashMap::new(),
+        }
+    }
+
     #[test]
     fn test_basic_arithmetic() {
         let mut vm = VirtualMachine::new();
         let program = vec![PushConstant(5.0), PushConstant(10.0), Add];
-        assert_eq!(vm.execute(&program).unwrap(), 15.0);
+        assert_eq!(vm.execute(&program, &dummy_context()).unwrap(), 15.0);
     }
 
     #[test]
@@ -153,34 +166,41 @@ mod tests {
             PushConstant(2.0),
             Multiply,
         ];
-        assert_eq!(vm.execute(&program).unwrap(), 30.0);
+        assert_eq!(vm.execute(&program, &dummy_context()).unwrap(), 30.0);
     }
 
     #[test]
     fn test_division_by_zero_safety() {
         let mut vm = VirtualMachine::new();
         let program = vec![PushConstant(10.0), PushConstant(0.0), Divide];
-        assert_eq!(vm.execute(&program).unwrap(), 0.0);
+        assert_eq!(vm.execute(&program, &dummy_context()).unwrap(), 0.0);
     }
 
     #[test]
     fn test_comparison_operators() {
         let mut vm = VirtualMachine::new();
+        let context = dummy_context();
+
         let program_gt_false = vec![PushConstant(5.0), PushConstant(10.0), GreaterThan];
-        assert_eq!(vm.execute(&program_gt_false).unwrap(), 0.0);
+        assert_eq!(vm.execute(&program_gt_false, &context).unwrap(), 0.0);
+
         let program_gt_true = vec![PushConstant(10.0), PushConstant(5.0), GreaterThan];
-        assert_eq!(vm.execute(&program_gt_true).unwrap(), 1.0);
+        assert_eq!(vm.execute(&program_gt_true, &context).unwrap(), 1.0);
+
         let program_eq_true = vec![PushConstant(10.0), PushConstant(10.0), Equal];
-        assert_eq!(vm.execute(&program_eq_true).unwrap(), 1.0);
+        assert_eq!(vm.execute(&program_eq_true, &context).unwrap(), 1.0);
     }
 
     #[test]
     fn test_logical_operators() {
         let mut vm = VirtualMachine::new();
+        let context = dummy_context();
+
         let program = vec![PushConstant(1.0), PushConstant(0.0), And];
-        assert_eq!(vm.execute(&program).unwrap(), 0.0);
+        assert_eq!(vm.execute(&program, &context).unwrap(), 0.0);
+
         let program_not = vec![PushConstant(1.0), Not];
-        assert_eq!(vm.execute(&program_not).unwrap(), 0.0);
+        assert_eq!(vm.execute(&program_not, &context).unwrap(), 0.0);
     }
 
     #[test]
@@ -193,7 +213,7 @@ mod tests {
             PushConstant(1.0),
             Add,
         ];
-        assert_eq!(vm.execute(&program).unwrap(), 100.0);
+        assert_eq!(vm.execute(&program, &dummy_context()).unwrap(), 100.0);
         assert_eq!(vm.memory[5], 99.0);
     }
 
@@ -201,7 +221,10 @@ mod tests {
     fn test_stack_underflow() {
         let mut vm = VirtualMachine::new();
         let program = vec![Add];
-        assert_eq!(vm.execute(&program), Err(VmError::StackUnderflow));
+        assert_eq!(
+            vm.execute(&program, &dummy_context()),
+            Err(VmError::StackUnderflow)
+        );
     }
 
     #[test]
@@ -209,7 +232,7 @@ mod tests {
         let mut vm = VirtualMachine::new();
         let program = vec![PushConstant(1.0), Store(MEMORY_SIZE as u8)];
         assert_eq!(
-            vm.execute(&program),
+            vm.execute(&program, &dummy_context()),
             Err(VmError::MemoryOutOfBounds(MEMORY_SIZE as u8))
         );
     }
@@ -222,21 +245,125 @@ mod tests {
             // Exceeds STACK_CAPACITY
             program.push(PushConstant(i as f64));
         }
-        assert_eq!(vm.execute(&program), Err(VmError::StackOverflow));
+        assert_eq!(
+            vm.execute(&program, &dummy_context()),
+            Err(VmError::StackOverflow)
+        );
     }
 
     #[test]
     fn test_invalid_program_empty() {
         let mut vm = VirtualMachine::new();
         let program = vec![];
-        assert_eq!(vm.execute(&program), Err(VmError::InvalidProgram));
+        assert_eq!(
+            vm.execute(&program, &dummy_context()),
+            Err(VmError::InvalidProgram)
+        );
     }
 
     #[test]
     fn test_stack_isolation_between_executions() {
         let mut vm = VirtualMachine::new();
-        vm.execute(&vec![PushConstant(99.0)]).unwrap();
-        let result = vm.execute(&vec![PushConstant(1.0)]).unwrap();
-        assert_eq!(result, 1.0); // Should not see the 99.0
+        let context = dummy_context();
+
+        let prog1 = vec![PushConstant(5.0), PushConstant(99.0)];
+        assert_eq!(vm.execute(&prog1, &context).unwrap(), 99.0);
+
+        let prog2 = vec![PushConstant(1.0)];
+        assert_eq!(vm.execute(&prog2, &context).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_price_access() {
+        let mut vm = VirtualMachine::new();
+        let context = VmContext {
+            open: 95.0,
+            high: 105.0,
+            low: 90.0,
+            close: 100.0,
+            indicators: HashMap::new(),
+        };
+
+        // Test accessing close price
+        let program_close = vec![PushPrice(PriceType::Close)];
+        assert_eq!(vm.execute(&program_close, &context).unwrap(), 100.0);
+
+        // Test accessing open price
+        let program_open = vec![PushPrice(PriceType::Open)];
+        assert_eq!(vm.execute(&program_open, &context).unwrap(), 95.0);
+
+        // Test accessing high price
+        let program_high = vec![PushPrice(PriceType::High)];
+        assert_eq!(vm.execute(&program_high, &context).unwrap(), 105.0);
+
+        // Test accessing low price
+        let program_low = vec![PushPrice(PriceType::Low)];
+        assert_eq!(vm.execute(&program_low, &context).unwrap(), 90.0);
+    }
+
+    #[test]
+    fn test_ohlc_calculation() {
+        let mut vm = VirtualMachine::new();
+        let context = VmContext {
+            open: 95.0,
+            high: 105.0,
+            low: 90.0,
+            close: 100.0,
+            indicators: HashMap::new(),
+        };
+
+        // Calculate typical price: (high + low + close) / 3
+        let program = vec![
+            PushPrice(PriceType::High),
+            PushPrice(PriceType::Low),
+            Add,
+            PushPrice(PriceType::Close),
+            Add,
+            PushConstant(3.0),
+            Divide,
+        ];
+
+        let result = vm.execute(&program, &context).unwrap();
+        let expected = (105.0 + 90.0 + 100.0) / 3.0;
+        assert!((result - expected).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_return_statement() {
+        let mut vm = VirtualMachine::new();
+        let context = dummy_context();
+
+        // Program with return in the middle - should stop execution
+        let program = vec![
+            PushConstant(42.0),
+            Return,
+            PushConstant(99.0), // This should not execute
+        ];
+
+        assert_eq!(vm.execute(&program, &context).unwrap(), 42.0);
+    }
+
+    #[test]
+    fn test_memory_persistence_across_operations() {
+        let mut vm = VirtualMachine::new();
+        let context = dummy_context();
+
+        // Store values in different memory locations
+        let setup_program = vec![
+            PushConstant(10.0),
+            Store(0),
+            PushConstant(20.0),
+            Store(1),
+            PushConstant(30.0),
+            Store(2),
+            PushConstant(0.0), // Final result placeholder
+        ];
+        vm.execute(&setup_program, &context).unwrap();
+
+        // Load and compute with stored values
+        let compute_program = vec![Load(0), Load(1), Add, Load(2), Multiply];
+
+        let result = vm.execute(&compute_program, &context).unwrap();
+        assert_eq!(result, (10.0 + 20.0) * 30.0);
     }
 }

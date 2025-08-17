@@ -1,0 +1,59 @@
+    Checking aegis-reborn v0.1.0 (/home/arelaxedscholar/Documents/Coding/aegis-reborn)
+error[E0432]: unresolved imports `ta::NextPeek`, `ta::Peek`
+ --> src/evaluation/indicators.rs:6:16
+  |
+6 | use ta::{Next, NextPeek, Peek};
+  |                ^^^^^^^^  ^^^^ no `Peek` in the root
+  |                |
+  |                no `NextPeek` in the root
+
+warning: unused import: `crate::evaluation::indicators::IndicatorManager`
+ --> src/evaluation/backtester.rs:2:5
+  |
+2 | use crate::evaluation::indicators::IndicatorManager;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `crate::vm::op::IndicatorType`
+ --> src/evaluation/backtester.rs:5:5
+  |
+5 | use crate::vm::op::IndicatorType;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> src/evaluation/backtester.rs:7:5
+  |
+7 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0063]: missing field `indicators` in initializer of `VmContext`
+  --> src/evaluation/backtester.rs:65:27
+   |
+65 |             let context = VmContext {
+   |                           ^^^^^^^^^ missing `indicators`
+
+error[E0599]: no method named `peek` found for reference `&SimpleMovingAverage` in the current scope
+  --> src/evaluation/indicators.rs:47:58
+   |
+47 |                 .insert(IndicatorType::Sma(*period), sma.peek());
+   |                                                          ^^^^ method not found in `&SimpleMovingAverage`
+
+error[E0599]: no method named `peek` found for reference `&RelativeStrengthIndex` in the current scope
+  --> src/evaluation/indicators.rs:52:58
+   |
+52 |                 .insert(IndicatorType::Rsi(*period), rsi.peek());
+   |                                                          ^^^^ method not found in `&RelativeStrengthIndex`
+
+warning: unused variable: `genome`
+  --> src/evolution/mapper.rs:26:23
+   |
+26 |     pub fn map(&self, genome: &Genome) -> Result<Strategy, MappingError> {
+   |                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_genome`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+Some errors have detailed explanations: E0063, E0432, E0599.
+For more information about an error, try `rustc --explain E0063`.
+warning: `aegis-reborn` (lib) generated 4 warnings
+error: could not compile `aegis-reborn` (lib) due to 4 previous errors; 4 warnings emitted
