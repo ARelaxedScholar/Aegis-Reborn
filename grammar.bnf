@@ -1,0 +1,28 @@
+# --- Root ---
+# A strategy is a collection of an entry and an exit program.
+<start> ::= <entry_program> <exit_program>
+
+# --- Program Definitions ---
+<entry_program> ::= ENTRY <boolean_expr>
+<exit_program>  ::= EXIT <boolean_expr>
+
+# --- Expressions ---
+# A boolean expression produces a boolean value (1.0 for true, 0.0 for false).
+<boolean_expr> ::= <arithmetic_expr> <arithmetic_expr> <comparator>
+                 | <boolean_expr> <boolean_expr> <logical_op>
+                 | <boolean_expr> NOT
+
+# An arithmetic expression produces a numerical value.
+<arithmetic_expr> ::= <operand>
+                    | <arithmetic_expr> <arithmetic_expr> <arithmetic_op>
+
+# --- Operators (Terminals) ---
+<comparator> ::= GT | LT | GE | LE | EQ
+<logical_op> ::= AND | OR
+<arithmetic_op> ::= ADD | SUB | MUL | DIV_SAFE
+
+# --- Operands (Data Terminals) ---
+<operand> ::= <indicator> | <price> | <constant>
+<indicator> ::= SMA20 | SMA100 | RSI14
+<price> ::= CLOSE
+<constant> ::= -1.0 | 0.0 | 1.0 | 30.0 | 50.0 | 70.0 | 100.0
