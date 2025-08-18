@@ -10,6 +10,8 @@ pub struct Config {
     pub mutation_rate: f64,
     pub crossover_rate: f64,
     pub num_generations: usize,
+    pub max_program_tokens: usize,
+    pub max_recursion_depth: u32,
 }
 
 impl Config {

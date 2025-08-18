@@ -24,6 +24,7 @@ dependencies = [
  "env_logger",
  "log",
  "polars",
+ "rand",
  "serde",
  "ta",
  "tempfile",

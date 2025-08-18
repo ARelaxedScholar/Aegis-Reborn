@@ -1,7 +1,7 @@
 use crate::data::OHLCV;
 use crate::evaluation::indicators::IndicatorManager;
 use crate::strategy::Strategy;
-use crate::vm::engine::{VmContext, VirtualMachine};
+use crate::vm::engine::{VirtualMachine, VmContext};
 use crate::vm::op::{IndicatorType, Op};
 use log::warn;
 use std::collections::{HashMap, HashSet};

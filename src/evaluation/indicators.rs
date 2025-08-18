@@ -2,8 +2,8 @@ use crate::data::OHLCV;
 use crate::vm::engine::VmContext;
 use crate::vm::op::IndicatorType;
 use std::collections::HashMap;
-use ta::indicators::{RelativeStrengthIndex, SimpleMovingAverage};
 use ta::Next;
+use ta::indicators::{RelativeStrengthIndex, SimpleMovingAverage};
 
 /// Manages the state and calculation of all required indicators for a backtest.
 /// This acts as an abstraction layer over the `ta` crate.

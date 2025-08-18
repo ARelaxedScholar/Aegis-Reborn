@@ -7,3 +7,5 @@ population_size = 100
 mutation_rate = 0.05
 crossover_rate = 0.8
 num_generations = 50
+max_program_tokens = 50
+max_recursion_depth = 256

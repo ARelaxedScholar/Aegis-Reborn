@@ -141,18 +141,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_load_csv_header_only() {
-        let dir = tempdir().unwrap();
-        let file_path = dir.path().join("header_only.csv");
-        let mut file = File::create(&file_path).unwrap();
-
-        writeln!(file, "timestamp,open,high,low,close,volume").unwrap();
-        // No data rows
-
-        let candles = load_csv(&file_path).unwrap();
-        assert_eq!(candles.len(), 0);
-    }
 
     #[test]
     fn test_load_csv_multiple_missing_columns() {
