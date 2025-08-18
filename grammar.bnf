@@ -1,18 +1,21 @@
 # --- Root ---
-# A strategy is a collection of an entry and an exit program.
-<start> ::= <entry_program> <exit_program>
+# A strategy MUST have an entry program. The exit program is optional.
+# This aligns with the "Crawl" phase goal of finding long-only signal alpha.
+<start> ::= <entry_program> <optional_exit>
 
 # --- Program Definitions ---
 <entry_program> ::= ENTRY <boolean_expr>
 <exit_program>  ::= EXIT <boolean_expr>
 
-# --- Expressions ---
-# A boolean expression produces a boolean value (1.0 for true, 0.0 for false).
+# --- Optionality Wrapper ---
+# Allows a strategy to have zero or one exit program.
+<optional_exit> ::= | <exit_program>
+
+# --- Expressions (Boolean Only for Program Logic) ---
 <boolean_expr> ::= <arithmetic_expr> <arithmetic_expr> <comparator>
                  | <boolean_expr> <boolean_expr> <logical_op>
                  | <boolean_expr> NOT
 
-# An arithmetic expression produces a numerical value.
 <arithmetic_expr> ::= <operand>
                     | <arithmetic_expr> <arithmetic_expr> <arithmetic_op>
 
@@ -24,5 +27,5 @@
 # --- Operands (Data Terminals) ---
 <operand> ::= <indicator> | <price> | <constant>
 <indicator> ::= SMA20 | SMA100 | RSI14
-<price> ::= CLOSE
+<price> ::= OPEN | HIGH | LOW | CLOSE
 <constant> ::= -1.0 | 0.0 | 1.0 | 30.0 | 50.0 | 70.0 | 100.0
