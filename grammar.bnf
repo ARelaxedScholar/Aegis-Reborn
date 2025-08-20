@@ -1,6 +1,5 @@
 # --- Root ---
 # A strategy MUST have an entry program. The exit program is optional.
-# This aligns with the "Crawl" phase goal of finding long-only signal alpha.
 <start> ::= <entry_program> <optional_exit>
 
 # --- Program Definitions ---
@@ -8,12 +7,10 @@
 <exit_program>  ::= EXIT <boolean_expr>
 
 # --- Optionality Wrapper ---
-# Allows a strategy to have zero or one exit program.
 <optional_exit> ::= | <exit_program>
 
-# --- Expressions (Boolean Only for Program Logic) ---
+# --- Expressions ---
 <boolean_expr> ::= <arithmetic_expr> <arithmetic_expr> <comparator> | <boolean_expr> <boolean_expr> <logical_op> | <boolean_expr> NOT
-
 <arithmetic_expr> ::= <operand> | <arithmetic_expr> <arithmetic_expr> <arithmetic_op>
 
 # --- Operators (Terminals) ---
@@ -22,7 +19,14 @@
 <arithmetic_op> ::= ADD | SUB | MUL | DIV_SAFE
 
 # --- Operands (Data Terminals) ---
-<operand> ::= <indicator> | <price> | <constant>
+# Operands are now split into more specific types for clarity.
+<operand> ::= <indicator> | <price> | <dynamic_constant> | <static_constant>
+
+# Static, absolute constants, useful for RSI levels, etc.
+<static_constant> ::= -1.0 | 0.0 | 1.0 | 30.0 | 50.0 | 70.0 | 100.0
+
+# Dynamic, relative constants, crucial for high-value assets.
+<dynamic_constant> ::= CLOSE_P1 | CLOSE_M1 | SMA20_P2 | SMA20_M2
+
 <indicator> ::= SMA20 | SMA100 | RSI14
 <price> ::= OPEN | HIGH | LOW | CLOSE
-<constant> ::= -1.0 | 0.0 | 1.0 | 30.0 | 50.0 | 70.0 | 100.0

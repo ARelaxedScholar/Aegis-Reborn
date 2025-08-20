@@ -6,7 +6,7 @@ use crate::vm::op::{IndicatorType, Op};
 use log::warn;
 use std::collections::{HashMap, HashSet};
 
-const INITIAL_CASH: f64 = 10_000.0;
+pub const INITIAL_CASH: f64 = 10_000.0;
 const ANNUALIZATION_FACTOR: f64 = 252.0; // Assuming 252 trading days in a year
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -40,13 +40,15 @@ impl Portfolio {
 }
 
 /// The complete result of a backtest run, with key performance metrics.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, Clone)]
 pub struct BacktestResult {
     pub final_equity: f64,
     pub entry_error_count: u32,
     pub exit_error_count: u32,
     pub annualized_return: f64,
     pub max_drawdown: f64,
+    pub sharpe_ratio: f64,
+    pub equity_curve: Vec<f64>, // Expose the equity curve for aggregation
 }
 
 /// Scans all programs in a strategy to find which indicators are required.
@@ -63,7 +65,7 @@ pub fn get_required_indicators(strategy: &Strategy) -> Vec<IndicatorType> {
 }
 
 /// Calculates the annualized return based on the equity curve.
-fn calculate_annualized_return(equity_curve: &[f64], num_candles: usize) -> f64 {
+pub fn calculate_annualized_return(equity_curve: &[f64], num_candles: usize) -> f64 {
     if equity_curve.len() <= 1 || num_candles == 0 {
         return 0.0;
     }
@@ -75,8 +77,42 @@ fn calculate_annualized_return(equity_curve: &[f64], num_candles: usize) -> f64 
     (1.0 + total_return).powf(1.0 / years) - 1.0
 }
 
+/// Calculates Sharpe Ratio
+pub fn calculate_sharpe_ratio(equity_curve: &[f64], risk_free_rate: f64) -> f64 {
+    if equity_curve.len() < 20 {
+        return 0.0;
+    } // Not enough data for meaningful stats
+
+    let returns: Vec<f64> = equity_curve
+        .windows(2)
+        .map(|w| (w[1] / w[0]) - 1.0)
+        .collect();
+
+    let mean_return = returns.iter().sum::<f64>() / returns.len() as f64;
+
+    let std_dev = (returns
+        .iter()
+        .map(|r| (r - mean_return).powi(2))
+        .sum::<f64>()
+        / returns.len() as f64)
+        .sqrt();
+
+    if std_dev == 0.0 {
+        return 0.0;
+    }
+
+    // Convert annual risk-free rate to daily rate
+    let daily_risk_free_rate = risk_free_rate / 252.0;
+
+    // Calculate excess return over risk-free rate (daily)
+    let excess_return = mean_return - daily_risk_free_rate;
+
+    // Annualize the Sharpe ratio
+    (excess_return / std_dev) * (252.0f64.sqrt())
+}
+
 /// Calculates the maximum drawdown from an equity curve.
-fn calculate_max_drawdown(equity_curve: &[f64]) -> f64 {
+pub fn calculate_max_drawdown(equity_curve: &[f64]) -> f64 {
     if equity_curve.is_empty() {
         return 0.0;
     }
@@ -103,7 +139,12 @@ impl Backtester {
         }
     }
 
-    pub fn run(&mut self, candles: &[OHLCV], strategy: &Strategy) -> BacktestResult {
+    pub fn run(
+        &mut self,
+        candles: &[OHLCV],
+        strategy: &Strategy,
+        risk_free_rate: f64,
+    ) -> BacktestResult {
         let mut portfolio = Portfolio::new();
         let mut entry_error_count = 0;
         let mut exit_error_count = 0;
@@ -119,8 +160,8 @@ impl Backtester {
         let mut indicator_manager = IndicatorManager::new(&required_indicators);
 
         for (i, candle) in candles.iter().enumerate() {
-            portfolio.update_equity(candle.close);
             indicator_manager.next(candle);
+            portfolio.update_equity(candle.close);
 
             let mut context = VmContext {
                 open: candle.open,
@@ -174,11 +215,13 @@ impl Backtester {
                 portfolio.cash = portfolio.position_size * last_candle.close;
                 portfolio.position_size = 0.0;
             }
+            portfolio.update_equity(last_candle.close);
         }
 
         let final_equity = portfolio.cash;
         let annualized_return = calculate_annualized_return(&portfolio.equity_curve, candles.len());
         let max_drawdown = calculate_max_drawdown(&portfolio.equity_curve);
+        let sharpe_ratio = calculate_sharpe_ratio(&portfolio.equity_curve, risk_free_rate);
 
         BacktestResult {
             final_equity,
@@ -186,6 +229,8 @@ impl Backtester {
             exit_error_count,
             annualized_return,
             max_drawdown,
+            sharpe_ratio,
+            equity_curve: portfolio.equity_curve,
         }
     }
 }
@@ -194,7 +239,6 @@ impl Backtester {
 mod tests {
     use super::*;
     use crate::vm::op::Op::*;
-    use crate::vm::op::PriceType;
 
     #[test]
     fn test_entry_only_strategy_holds_forever() {
@@ -214,7 +258,7 @@ mod tests {
         programs.insert("entry".to_string(), vec![PushConstant(1.0)]); // always enter
         let strategy = Strategy { programs };
 
-        let result = backtester.run(&candles, &strategy);
+        let result = backtester.run(&candles, &strategy, 0.02);
 
         // Expected: Buys at 100, holds at 110, liquidated at 110 -> 11k final equity.
         assert_eq!(result.final_equity, 11_000.0);
@@ -243,7 +287,7 @@ mod tests {
         programs.insert("exit".to_string(), vec![PushConstant(1.0)]); // always exit
         let strategy = Strategy { programs };
 
-        let result = backtester.run(&candles, &strategy);
+        let result = backtester.run(&candles, &strategy, 0.02);
 
         // Expected: Never enters, so cash remains initial. All metrics are neutral.
         assert_eq!(result.final_equity, INITIAL_CASH);
@@ -265,7 +309,7 @@ mod tests {
         programs.insert("entry".to_string(), vec![Add]);
         let strategy = Strategy { programs };
 
-        let result = backtester.run(&candles, &strategy);
+        let result = backtester.run(&candles, &strategy, 0.02);
         assert_eq!(result.final_equity, INITIAL_CASH);
         assert_eq!(result.entry_error_count, 1);
         assert_eq!(result.exit_error_count, 0);

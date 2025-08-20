@@ -1,17 +1,21 @@
-#[derive(Clone, Debug, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+/// The Op codes our VM actually supports
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Op {
-    // --- Data Loading & State Management ---
+    /// The Op codes related to numbers
     PushConstant(f64),
     PushPrice(PriceType),
     PushIndicator(IndicatorType),
+    PushDynamic(DynamicConstant),
     Store(u8),
     Load(u8),
 
-    // --- Operators ---
+    /// The Operators and Comparators
     Add,
     Subtract,
     Multiply,
-    Divide, // Mandate: The VM's implementation of this MUST be safe.
+    Divide,
     GreaterThan,
     LessThan,
     GreaterThanOrEqual,
@@ -21,22 +25,31 @@ pub enum Op {
     Or,
     Not,
 
-    // --- Control Flow (Reserved for "Walk" phase IF implementation) ---
+    /// Conditionals
     JumpIfFalse(usize),
     Jump(usize),
     Return,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PriceType {
-    Close,
+    Open,
     High,
     Low,
-    Open,
+    Close,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum IndicatorType {
     Sma(u16),
     Rsi(u16),
+}
+
+/// Defines dynamic, relative constants calculated at runtime.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DynamicConstant {
+    /// Represents `CLOSE * (1 + percent/100)`. `percent` can be negative.
+    ClosePercent(i8),
+    /// Represents `SMA(period) * (1 + percent/100)`.
+    SmaPercent(u16, i8),
 }
