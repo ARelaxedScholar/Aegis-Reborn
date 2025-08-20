@@ -1,4 +1,4 @@
-use crate::vm::op::{IndicatorType, Op, PriceType};
+use crate::vm::op::{DynamicConstant, IndicatorType, Op, PriceType};
 use std::collections::HashMap;
 
 const STACK_CAPACITY: usize = 256;
@@ -50,6 +50,26 @@ impl VirtualMachine {
                         PriceType::Close => context.close,
                     };
                     self.push(val)?;
+                }
+                Op::PushDynamic(dynamic_const) => {
+                    let base_value = match dynamic_const {
+                        DynamicConstant::ClosePercent(_) => context.close,
+                        DynamicConstant::SmaPercent(period, _) => context
+                            .indicators
+                            .get(&IndicatorType::Sma(*period))
+                            .copied()
+                            .unwrap_or(f64::NAN),
+                    };
+
+                    let calculated_value = match dynamic_const {
+                        DynamicConstant::ClosePercent(pct) => {
+                            base_value * (1.0 + (*pct as f64 / 100.0))
+                        }
+                        DynamicConstant::SmaPercent(_, pct) => {
+                            base_value * (1.0 + (*pct as f64 / 100.0))
+                        }
+                    };
+                    self.push(calculated_value)?;
                 }
                 Op::Store(idx) => {
                     let val = self.pop()?;
@@ -365,5 +385,30 @@ mod tests {
 
         let result = vm.execute(&compute_program, &context).unwrap();
         assert_eq!(result, (10.0 + 20.0) * 30.0);
+    }
+
+    #[test]
+    fn test_push_dynamic_constant() {
+        let mut vm = VirtualMachine::new();
+        let mut context = VmContext {
+            open: 0.0,
+            high: 0.0,
+            low: 0.0,
+            close: 20000.0,
+            indicators: HashMap::new(),
+        };
+        context.indicators.insert(IndicatorType::Sma(20), 19500.0);
+
+        // Test CLOSE +1%
+        let prog1 = vec![PushDynamic(DynamicConstant::ClosePercent(1))];
+        assert_eq!(vm.execute(&prog1, &context).unwrap(), 20200.0);
+
+        // Test CLOSE -2%
+        let prog2 = vec![PushDynamic(DynamicConstant::ClosePercent(-2))];
+        assert_eq!(vm.execute(&prog2, &context).unwrap(), 19600.0);
+
+        // Test SMA(20) +2%
+        let prog3 = vec![PushDynamic(DynamicConstant::SmaPercent(20, 2))];
+        assert!((vm.execute(&prog3, &context).unwrap() - 19890.0).abs() < 1e-9);
     }
 }

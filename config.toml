@@ -1,11 +1,28 @@
 # Configuration for the Aegis Reborn MVP
-grammar_file = "grammar.bnf"
-data_file = "data/BTC-USD.csv" # Example data file path
 
+# Path to the grammar definition file
+grammar_file = "grammar.bnf"
+
+[data]
+file_path = "src/data/BTC-USD.csv"
+hold_out_split = 0.3 # 30% of data is reserved for the final, unbiased test
+
+[ga]
 # Genetic Algorithm Parameters
 population_size = 100
-mutation_rate = 0.05
-crossover_rate = 0.8
 num_generations = 50
+mutation_rate = 0.25
+crossover_rate = 0.9
+tournament_size = 3
+initial_genome_length = 100
 max_program_tokens = 50
 max_recursion_depth = 256
+parsimony_penalty = 0.001
+alpha = 0.01 # Smoothing factor for Calmar ratio
+
+# Walk-Forward Parameters (in days)
+training_window_size = 504 # ~2 years of trading days
+test_window_size = 21      # ~1 month of trading days
+
+[metrics]
+risk_free_rate = 0.02 # e.g., 2% annualized risk-free rate

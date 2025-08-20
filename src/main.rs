@@ -1,86 +1,110 @@
-use aegis_reborn::config::Config;
-use aegis_reborn::evolution::Genome;
+use aegis_reborn::config::{Config, DataConfig};
+use aegis_reborn::data::{OHLCV, load_csv};
+use aegis_reborn::evolution::EvolutionEngine;
 use aegis_reborn::evolution::grammar::Grammar;
 use aegis_reborn::evolution::mapper::GrammarBasedMapper;
-use rand::Rng;
 use std::path::Path;
+use std::process;
+
+/// Helper function to encapsulate data loading and partitioning.
+/// It takes only the data-related configuration, enforcing separation of concerns.
+fn prepare_data(data_config: &DataConfig) -> Result<(Vec<OHLCV>, Vec<OHLCV>), String> {
+    log::info!("Loading data from '{}'...", data_config.file_path);
+    let all_candles = load_csv(Path::new(&data_config.file_path))
+        .map_err(|e| format!("Failed to load data: {}", e))?;
+
+    if all_candles.is_empty() {
+        return Err("Data file contains no candle data.".to_string());
+    }
+
+    let split_index =
+        (all_candles.len() as f64 * (1.0 - data_config.hold_out_split)).floor() as usize;
+
+    // Sanity check the split indices
+    if split_index < 100 || all_candles.len() - split_index < 10 {
+        return Err("Not enough data for a meaningful train/hold-out split.".to_string());
+    }
+
+    let (training_data, hold_out_data) = all_candles.split_at(split_index);
+    log::info!(
+        "Data partitioned: {} candles for Training/Validation, {} for Hold-Out.",
+        training_data.len(),
+        hold_out_data.len()
+    );
+    Ok((training_data.to_vec(), hold_out_data.to_vec()))
+}
 
 fn main() {
     env_logger::init();
     log::info!("Booting Aegis Reborn...");
 
-    // --- 1. Load Configuration ---
+    // 1. Load and Validate Configuration
     let config = match Config::load(Path::new("config.toml")) {
-        Ok(c) => {
-            log::info!("Configuration loaded successfully.");
-            c
-        }
+        Ok(c) => c,
         Err(e) => {
             log::error!("Failed to load configuration: {}", e);
-            return;
+            process::exit(1);
         }
     };
 
-    // --- 2. Load Grammar ---
+    if let Err(e) = config.validate() {
+        log::error!("Invalid configuration: {}", e);
+        process::exit(1);
+    }
+    log::info!("Configuration loaded and validated.");
+
+    // 2. Load Grammar
     let grammar = match Grammar::new(Path::new(&config.grammar_file)) {
-        Ok(g) => {
-            log::info!("Grammar '{}' loaded and validated.", config.grammar_file);
-            g
-        }
+        Ok(g) => g,
         Err(e) => {
             log::error!("Failed to load grammar: {}", e);
-            return;
+            process::exit(1);
+        }
+    };
+    log::info!("Grammar '{}' loaded successfully.", config.grammar_file);
+
+    // 3. Prepare Data
+    let (training_validation_data, hold_out_data) = match prepare_data(&config.data) {
+        Ok(data) => data,
+        Err(e) => {
+            log::error!("Data preparation failed: {}", e);
+            process::exit(1);
         }
     };
 
-    // --- 3. Create Mapper ---
+    // 4. Run the Evolution ONLY on the Training/Validation Set
+    log::info!("--- Starting Evolution ---");
+    let mut engine = EvolutionEngine::new(
+        &config.ga,
+        &config.metrics,
+        &grammar,
+        &training_validation_data,
+    );
+    let champions = engine.evolve();
+
+    // 5. Final Gauntlet (To be implemented in Step 5)
+    log::info!("--- Evolution Complete: Preparing for Final Gauntlet ---");
+    log::info!("Top 5 Champions (Council):");
     let mapper = GrammarBasedMapper::new(
         &grammar,
-        config.max_program_tokens,
-        config.max_recursion_depth,
+        config.ga.max_program_tokens,
+        config.ga.max_recursion_depth,
     );
-    log::info!("GrammarBasedMapper initialized.");
-
-    // --- 4. Perform Multiple Test Mappings ---
-    log::info!("--- Starting Mapper Smoke Test ---");
-    let mut rng = rand::rng();
-
-    for i in 0..3 {
-        println!(); // Add a blank line for readability
-
-        // --- 4a. Generate a Random Genome ---
-        let genome: Genome = (0..50).map(|_| rng.random_range(0..=u32::MAX)).collect();
-        log::info!(
-            "[Run {}/3] Generated test genome (first 5 codons): {:?}",
-            i + 1,
-            &genome[..5.min(genome.len())]
-        );
-
-        // --- 4b. Perform a Test Mapping ---
-        match mapper.map(&genome) {
-            Ok(strategy) => {
-                log::info!("[Run {}/3] Successfully mapped genome to strategy!", i + 1);
-
-                // --- 4c. Basic Strategy Validation ---
-                let program_keys: Vec<String> = strategy.programs.keys().cloned().collect();
-                log::info!("[Run {}/3] Programs generated: {:?}", i + 1, program_keys);
-
-                if strategy.programs.contains_key("entry") {
-                    log::info!("[Run {}/3] ✓ Entry program found.", i + 1);
-                } else {
-                    log::warn!(
-                        "[Run {}/3] ⚠ CRITICAL: No entry program was generated. This strategy is invalid.",
-                        i + 1
-                    );
-                }
-
-                println!("[Run {}/3] Full Strategy Details:\n{:#?}", i + 1, strategy);
-            }
-            Err(e) => {
-                log::error!("[Run {}/3] Failed to map genome: {}", i + 1, e);
-            }
+    for (i, champion) in champions.iter().take(5).enumerate() {
+        println!("\n[Rank {}] Fitness: {:.4}", i + 1, champion.fitness);
+        match mapper.map(&champion.genome) {
+            Ok(strategy) => println!("{:#?}", strategy),
+            Err(e) => println!("  - Failed to map champion genome: {:?}", e),
         }
     }
-
-    log::info!("--- Mapper Smoke Test Complete ---");
+    log::info!(
+        "Next step: Run Council of Champions through Block Bootstrapping and on the Hold-Out set of {} candles.",
+        hold_out_data.len()
+    );
+    // run_gauntlet(
+    //    &champions,
+    //    training_validation_data,
+    //    &hold_out_data,
+    //    &config.metrics, // Pass the metrics config
+    //);
 }

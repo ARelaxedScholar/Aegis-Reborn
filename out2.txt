@@ -1,0 +1,165 @@
+
+[Rank 1] Fitness: 2.5257
+Strategy {
+    programs: {
+        "entry": [
+            PushDynamic(
+                ClosePercent(
+                    -1,
+                ),
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            LessThanOrEqual,
+            Not,
+        ],
+        "exit": [
+            PushPrice(
+                Close,
+            ),
+            PushDynamic(
+                SmaPercent(
+                    20,
+                    2,
+                ),
+            ),
+            GreaterThanOrEqual,
+            Not,
+        ],
+    },
+}
+
+[Rank 2] Fitness: 2.5257
+Strategy {
+    programs: {
+        "entry": [
+            PushDynamic(
+                ClosePercent(
+                    -1,
+                ),
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            LessThanOrEqual,
+            Not,
+        ],
+        "exit": [
+            PushPrice(
+                Close,
+            ),
+            PushDynamic(
+                SmaPercent(
+                    20,
+                    2,
+                ),
+            ),
+            GreaterThanOrEqual,
+            Not,
+        ],
+    },
+}
+
+[Rank 3] Fitness: 2.5257
+Strategy {
+    programs: {
+        "entry": [
+            PushDynamic(
+                ClosePercent(
+                    -1,
+                ),
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            LessThanOrEqual,
+            Not,
+        ],
+        "exit": [
+            PushPrice(
+                Close,
+            ),
+            PushDynamic(
+                SmaPercent(
+                    20,
+                    2,
+                ),
+            ),
+            GreaterThan,
+            Not,
+        ],
+    },
+}
+
+[Rank 4] Fitness: 2.5257
+Strategy {
+    programs: {
+        "entry": [
+            PushDynamic(
+                ClosePercent(
+                    -1,
+                ),
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            LessThanOrEqual,
+            Not,
+        ],
+        "exit": [
+            PushPrice(
+                Close,
+            ),
+            PushDynamic(
+                SmaPercent(
+                    20,
+                    2,
+                ),
+            ),
+            GreaterThan,
+            Not,
+        ],
+    },
+}
+
+[Rank 5] Fitness: 2.5257
+Strategy {
+    programs: {
+        "entry": [
+            PushDynamic(
+                ClosePercent(
+                    -1,
+                ),
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            LessThanOrEqual,
+            Not,
+        ],
+        "exit": [
+            PushPrice(
+                Close,
+            ),
+            PushDynamic(
+                SmaPercent(
+                    20,
+                    2,
+                ),
+            ),
+            GreaterThan,
+            Not,
+        ],
+    },
+}
