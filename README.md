@@ -14,7 +14,7 @@ We are building this system in three distinct phases to manage complexity and en
 
 *   ⏳ **WALK (The Road Ahead):** Once the core is proven, we will teach it nuance. This phase will introduce more complex logic and risk management, such as nested `IF/THEN/ELSE` expressions, evolvable **Stop-Loss** and **Take-Profit** levels, and dynamic **Position Sizing**.
 
-*   🚀 **RUN (The Final Form):** The ultimate vision. This phase will expand the system to a full-featured research platform, introducing **shorting capabilities** and tackling the holy grail of quantitative finance: **multi-asset portfolio optimization**.
+*   🚀 **RUN (The Final Form):** The ultimate vision. This phase will expand the system to a full-featured research platform, introducing **shorting capabilities** and tackling the holy grail of quantitative finance: **multi-asset portfolio optimization** (At which point the previous Aegis, which will be renamed Athena, will join back combining alpha-generation with data-driven portfolio allocations.)
 
 ### Current Progress & Next Steps
 
