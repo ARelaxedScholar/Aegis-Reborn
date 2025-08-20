@@ -42,9 +42,9 @@ The final and most critical task of the Crawl phase remains:
     *   `[✅]` **Step 3: The Factory:** Build the `GrammarBasedMapper` to compile genomes into bytecode strategies.
     *   `[✅]` **Step 4: The Evolution Engine:** Implement the full Genetic Algorithm loop with a Calmar-based fitness function.
     *   `[⏳]` **Step 5: The Professional Gauntlet:**
-        *   Implement the **Walk-Forward Analysis** engine and integrate it as the primary fitness function.
-        *   Implement the post-evolution **Block Bootstrapping** stress test.
-        *   Implement the final **Hold-Out Set** validation and reporting.
+        *  `[ ✅]` Implement the **Walk-Forward Analysis** engine and integrate it as the primary fitness function.
+        *  `[⏳]` Implement the post-evolution **Block Bootstrapping** stress test.
+        *  `[⏳]` Implement the final **Hold-Out Set** validation and reporting.
 *   **Exit Criteria:** The system can autonomously run, from config file to final report, and produce a "Council of Champions" that have been rigorously validated against our full gauntlet.
 
 #### **Phase 2: WALK - The Sophisticated Trader**
