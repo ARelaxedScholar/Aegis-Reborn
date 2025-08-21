@@ -6,29 +6,33 @@ We don't tell the machine how to trade. We give it a basic language—the buildi
 
 This project is an experiment in discovering genuine, data-driven alpha by combining a high-performance backtesting engine with the creative, unconstrained search of an evolutionary algorithm.
 
+
+
 ### The Philosophy: Crawl, Walk, Run
 
 We are building this system in three distinct phases to manage complexity and ensure a robust foundation.
 
-*   ✅ **CRAWL (We Are Here):** The mission is to build a flawless, end-to-end engine for a single, focused problem: discovering a **long-only** strategy for a **single asset**. This phase is about proving the core architecture is sound.
+*   ✅ **CRAWL (Mission Accomplished):** The mission is to build a flawless, end-to-end engine for a single, focused problem: discovering a **long-only** strategy for a **single asset**. This phase is about proving the core architecture is sound. And hurray, we accomplished it! The algorithm even generated a known strategy through the process despite the relatively simple grammar!
+  
 
-*   ⏳ **WALK (The Road Ahead):** Once the core is proven, we will teach it nuance. This phase will introduce more complex logic and risk management, such as nested `IF/THEN/ELSE` expressions, evolvable **Stop-Loss** and **Take-Profit** levels, and dynamic **Position Sizing**.
+*   ⏳ **WALK (We Are Here!!!):** Once the core is proven, we will teach it nuance. This phase will introduce more complex logic and risk management, such as nested `IF/THEN/ELSE` expressions, evolvable **Stop-Loss** and **Take-Profit** levels, and dynamic **Position Sizing**.
 
 *   🚀 **RUN (The Final Form):** The ultimate vision. This phase will expand the system to a full-featured research platform, introducing **shorting capabilities** and tackling the holy grail of quantitative finance: **multi-asset portfolio optimization** (At which point the previous Aegis, which will be renamed Athena, will join back combining alpha-generation with data-driven portfolio allocations.)
 
 ### Current Progress & Next Steps
 
-The **Crawl** phase is nearly complete. We have successfully built and tested:
+The **Crawl** phase is now complete!!! We have successfully built and tested:
 *   A high-performance **Bytecode Virtual Machine (VM)** for strategy execution.
 *   A robust **Data Pipeline** and **Backtesting Harness**.
 *   The **Grammar-to-Bytecode Compiler (`Mapper`)**.
 *   The core **`EvolutionEngine`**, which is already discovering non-trivial, logical strategies.
 
 The final and most critical task of the Crawl phase remains:
+The crucible is implemented and we even got a semantically meaningful candidate quite quickly!
+```if the ClosePercent is 1% above the SMA(100) [can be understood as the Close price is 1% above the SMA of 100 periods, which indicate strong upward trend, get in the trade; If the RSI(14) <= 50  you leave, 50 is generally considered neutral (neither oversold, nor overbought.) So leave when the direction of the market is uncertain, this makes sense.```
+Gave a smoothed Calmar ratio of 2.7709 (quite impressive) and 0.667 Sharpe Ratio on the Hold Out set (nothing crazy, but still quite happy the algo generated a semantically meaningful strategy.)
+<img width="2036" height="1088" alt="image" src="https://github.com/user-attachments/assets/e90a4b6f-db74-47ff-a1bd-7a9e708af898" />
 
-*   **Implement the Professional Evaluation Gauntlet (Step 5):** We must replace our current simple backtest with the full, three-stage validation suite: **Walk-Forward Analysis**, **Block Bootstrapping**, and a final, unbiased **Hold-Out Set** test. This is the crucible that will forge our first true champions.
-
----
 ---
 
 ### **Project Roadmap: Aegis Reborn**
@@ -41,11 +45,11 @@ The final and most critical task of the Crawl phase remains:
     *   `[✅]` **Step 2: Data & Harness:** Implement a production-grade data loader and a minimal viable backtesting harness (MVB).
     *   `[✅]` **Step 3: The Factory:** Build the `GrammarBasedMapper` to compile genomes into bytecode strategies.
     *   `[✅]` **Step 4: The Evolution Engine:** Implement the full Genetic Algorithm loop with a Calmar-based fitness function.
-    *   `[⏳]` **Step 5: The Professional Gauntlet:**
+    *   `[✅]` **Step 5: The Professional Gauntlet:**
         *  `[ ✅]` Implement the **Walk-Forward Analysis** engine and integrate it as the primary fitness function.
-        *  `[⏳]` Implement the post-evolution **Block Bootstrapping** stress test.
-        *  `[⏳]` Implement the final **Hold-Out Set** validation and reporting.
-*   **Exit Criteria:** The system can autonomously run, from config file to final report, and produce a "Council of Champions" that have been rigorously validated against our full gauntlet.
+        *  `[✅]` Implement the post-evolution **Block Bootstrapping** stress test.
+        *  `[✅]` Implement the final **Hold-Out Set** validation and reporting.
+*   **Exit Criteria:** The system can autonomously run, from config file to final report, and produce a "Council of Champions" that have been rigorously validated against our full gauntlet. Actually accomplished.
 
 #### **Phase 2: WALK - The Sophisticated Trader**
 *   **Objective:** Enhance the engine to evolve more complex, realistic, and risk-managed strategies.
