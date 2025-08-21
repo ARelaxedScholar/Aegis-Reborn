@@ -1,5 +1,6 @@
 use aegis_reborn::config::{Config, DataConfig};
 use aegis_reborn::data::{OHLCV, load_csv};
+use aegis_reborn::evaluation::gauntlet::{run_gauntlet, write_reports_to_json};
 use aegis_reborn::evolution::EvolutionEngine;
 use aegis_reborn::evolution::grammar::Grammar;
 use aegis_reborn::evolution::mapper::GrammarBasedMapper;
@@ -46,7 +47,7 @@ fn prepare_data(data_config: &DataConfig) -> Result<(Vec<OHLCV>, Vec<OHLCV>), St
     Ok((training_data.to_vec(), hold_out_data.to_vec()))
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     log::info!("Booting Aegis Reborn...");
 
@@ -113,10 +114,18 @@ fn main() {
         "Next step: Run Council of Champions through Block Bootstrapping and on the Hold-Out set of {} candles.",
         hold_out_data.len()
     );
-    // run_gauntlet(
-    //    &champions,
-    //    training_validation_data,
-    //    &hold_out_data,
-    //    &config.metrics, // Pass the metrics config
-    //);
+
+    let final_reports = run_gauntlet(
+        &champions.iter().take(10).cloned().collect::<Vec<_>>(),
+        &training_validation_data,
+        &hold_out_data,
+        &grammar,
+        &config.ga,
+        &config.metrics,
+    )?;
+
+    write_reports_to_json(&final_reports)?;
+
+    log::info!("--- Aegis Reborn Run Complete ---");
+    Ok(())
 }

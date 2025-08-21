@@ -4,6 +4,7 @@ use crate::strategy::Strategy;
 use crate::vm::engine::{VirtualMachine, VmContext};
 use crate::vm::op::{IndicatorType, Op};
 use log::warn;
+use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
 pub const INITIAL_CASH: f64 = 10_000.0;
@@ -40,7 +41,7 @@ impl Portfolio {
 }
 
 /// The complete result of a backtest run, with key performance metrics.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct BacktestResult {
     pub final_equity: f64,
     pub entry_error_count: u32,
