@@ -1,54 +1,38 @@
    Compiling aegis-reborn v0.1.0 (/home/arelaxedscholar/Documents/Coding/aegis-reborn)
-warning: method `validate_and_evaluate_strategy` is never used
-   --> src/evolution/mod.rs:260:8
-    |
-33  | impl<'a> EvolutionEngine<'a> {
-    | ---------------------------- method in this implementation
-...
-260 |     fn validate_and_evaluate_strategy(
-    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: `#[warn(dead_code)]` on by default
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.46s
+     Running unittests src/lib.rs (target/debug/deps/aegis_reborn-2c33628b200cbab9)
 
-warning: function `create_engine` is never used
-   --> src/evolution/mod.rs:419:8
-    |
-419 |     fn create_engine() -> EvolutionEngine<'static> {
-    |        ^^^^^^^^^^^^^
-
-warning: `aegis-reborn` (lib) generated 1 warning
-warning: `aegis-reborn` (lib test) generated 2 warnings (1 duplicate)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.06s
-     Running unittests src/lib.rs (target/debug/deps/aegis_reborn-a623a9a869fa3f9c)
-
-running 50 tests
+running 53 tests
 test data::tests::test_date_to_timestamp_conversion ... ok
 test data::tests::test_ohlcv_validation ... ok
 test evaluation::backtester::tests::test_drawdown_calculation ... ok
 test evaluation::backtester::tests::test_entry_only_strategy_holds_forever ... ok
 test evaluation::backtester::tests::test_exit_only_strategy_does_nothing ... ok
-test evaluation::walk_forward::tests::test_getters ... ok
 test evaluation::backtester::tests::test_vm_error_on_entry_is_logged ... ok
+test evaluation::gauntlet::tests::test_block_creation ... ok
+test evaluation::gauntlet::tests::test_candle_validation ... ok
+test evaluation::walk_forward::tests::test_getters ... ok
 test evaluation::walk_forward::tests::test_parameter_validation ... ok
-test evaluation::walk_forward::tests::test_window_estimation ... ok
 test evaluation::walk_forward::tests::test_validator_creation ... ok
+test evaluation::walk_forward::tests::test_window_estimation ... ok
 test evolution::grammar::tests::test_undefined_non_terminal_error ... ok
 test evolution::grammar::tests::test_valid_grammar_loads ... ok
-test evolution::mapper::tests::test_token_limit_enforced ... ok
 test evolution::mapper::tests::test_optional_exit_is_respected ... ok
-test evolution::tests::test_crossover_empty_genomes ... ok
 test evolution::tests::test_crossover ... ok
+test evolution::mapper::tests::test_token_limit_enforced ... ok
+test evolution::tests::test_crossover_empty_genomes ... ok
+test evaluation::gauntlet::tests::test_log_returns_calculation ... ok
 test evolution::tests::test_fitness_handles_mapping_error ... ok
-test evolution::tests::test_initialize_population ... ok
 test evolution::tests::test_elitism_preservation ... ok
-test evolution::tests::test_mutation_empty_genome ... ok
+test evolution::tests::test_initialize_population ... ok
 test evolution::tests::test_mutation ... ok
 test evolution::tests::test_mapping_failure_counting ... ok
+test evolution::tests::test_mutation_empty_genome ... ok
 test evolution::tests::test_full_generation_cycle ... ok
 test evolution::tests::test_population_size_maintained ... ok
-test vm::engine::tests::test_basic_arithmetic ... ok
 test evolution::tests::test_variable_length_crossover ... ok
 test evolution::tests::test_tournament_selection ... ok
+test vm::engine::tests::test_basic_arithmetic ... ok
 test vm::engine::tests::test_comparison_operators ... ok
 test vm::engine::tests::test_division_by_zero_safety ... ok
 test vm::engine::tests::test_invalid_program_empty ... ok
@@ -65,17 +49,17 @@ test vm::engine::tests::test_stack_overflow ... ok
 test vm::engine::tests::test_stack_underflow ... ok
 test vm::engine::tests::test_state_management_store_and_load ... ok
 test data::tests::test_missing_columns_detection ... ok
-test data::tests::test_numeric_timestamp_fallback ... ok
-test data::tests::test_prefer_adj_close ... ok
 test data::tests::test_load_csv_with_date_strings ... ok
-test data::tests::test_invalid_date_format ... ok
-test data::tests::test_load_csv_case_insensitive_columns ... ok
+test data::tests::test_numeric_timestamp_fallback ... ok
 test data::tests::test_real_world_data_format ... ok
+test data::tests::test_invalid_date_format ... ok
+test data::tests::test_prefer_adj_close ... ok
+test data::tests::test_load_csv_case_insensitive_columns ... ok
 test data::tests::test_config_options ... ok
 
-test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 
-     Running unittests src/main.rs (target/debug/deps/aegis_reborn-928d2bbb05a88c83)
+     Running unittests src/main.rs (target/debug/deps/aegis_reborn-fb4cda903e2360f8)
 
 running 0 tests
 

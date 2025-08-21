@@ -26,3 +26,4 @@ test_window_size = 21      # ~1 month of trading days
 
 [metrics]
 risk_free_rate = 0.02 # e.g., 2% annualized risk-free rate
+bootstrap_runs = 2_000

@@ -3,11 +3,9 @@ pub mod mapper;
 
 use crate::config::{GaConfig, MetricsConfig};
 use crate::data::OHLCV;
-use crate::evaluation::backtester::BacktestResult;
 use crate::evaluation::walk_forward::WalkForwardValidator;
 use crate::evolution::grammar::Grammar;
 use crate::evolution::mapper::GrammarBasedMapper;
-use crate::strategy::Strategy;
 use log::{debug, error, info};
 use rand::prelude::*;
 use rand::rng;
@@ -256,22 +254,6 @@ impl<'a> EvolutionEngine<'a> {
         (fitness, false, false)
     }
 
-    // Optional: Add this helper method for better error handling and metrics
-    fn validate_and_evaluate_strategy(
-        &mut self,
-        strategy: &Strategy,
-    ) -> Result<BacktestResult, String> {
-        let validator = WalkForwardValidator::new(
-            self.config.training_window_size,
-            self.config.test_window_size,
-            self.metrics_params.risk_free_rate,
-        )
-        .map_err(|e| format!("Validator creation failed: {}", e))?;
-
-        validator
-            .validate(self.candles, strategy)
-            .map_err(|e| format!("Validation failed: {}", e))
-    }
     fn select_parents(&self) -> Vec<Individual> {
         let tournament_size = self.config.tournament_size;
         let mut selected_parents = Vec::new();
@@ -337,7 +319,6 @@ mod tests {
     use crate::data::OHLCV;
     use crate::evolution::grammar::Grammar;
     use std::collections::HashMap;
-    use std::sync::LazyLock;
 
     // Helper to create a minimal, valid config for testing
     fn get_test_config() -> GaConfig {
@@ -361,6 +342,7 @@ mod tests {
     fn get_metrics_config() -> MetricsConfig {
         MetricsConfig {
             risk_free_rate: 0.02,
+            bootstrap_runs: 100,
         }
     }
 
@@ -413,34 +395,6 @@ mod tests {
                 volume: 900.0,
             },
         ]
-    }
-
-    // Helper to create an engine for testing
-    fn create_engine() -> EvolutionEngine<'static> {
-        static CONFIG: GaConfig = GaConfig {
-            alpha: 0.05,
-            population_size: 10,
-            num_generations: 5,
-            mutation_rate: 0.1,
-            crossover_rate: 0.8,
-            max_program_tokens: 50,
-            max_recursion_depth: 256,
-            initial_genome_length: 10,
-            parsimony_penalty: 0.01,
-            tournament_size: 3,
-            test_window_size: 3,
-            training_window_size: 3,
-        };
-
-        static METRICS: MetricsConfig = MetricsConfig {
-            risk_free_rate: 0.02,
-        };
-        static GRAMMAR: LazyLock<Grammar> = LazyLock::new(|| Grammar {
-            rules: HashMap::new(),
-        });
-        static CANDLES: Vec<OHLCV> = vec![];
-
-        EvolutionEngine::new(&CONFIG, &METRICS, &GRAMMAR, &CANDLES)
     }
 
     #[test]

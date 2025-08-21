@@ -5,6 +5,7 @@ use std::path::Path;
 #[derive(Deserialize, Debug)]
 pub struct MetricsConfig {
     pub risk_free_rate: f64,
+    pub bootstrap_runs: usize,
 }
 
 #[derive(Deserialize, Debug)]
@@ -65,6 +66,9 @@ impl Config {
                 "The training and test window sizes must be at least 2 for meaningful analysis"
                     .to_string(),
             );
+        }
+        if self.metrics.bootstrap_runs < 1 {
+            return Err("bootstrap_runs must be at least 1, a good default is 1_000, 2000, you might observe diminising returns beyond that".to_string());
         }
         Ok(())
     }
