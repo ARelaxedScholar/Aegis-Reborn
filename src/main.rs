@@ -6,8 +6,20 @@ use aegis_reborn::evolution::mapper::GrammarBasedMapper;
 use std::path::Path;
 use std::process;
 
-/// Helper function to encapsulate data loading and partitioning.
-/// It takes only the data-related configuration, enforcing separation of concerns.
+/// Loads OHLCV data from a CSV file and splits it into training and hold-out sets.
+///
+/// # Arguments
+/// * `data_config` - Reference to a `DataConfig` struct containing the file path and hold-out split ratio.
+///
+/// # Returns
+/// * `Ok((Vec<OHLCV>, Vec<OHLCV>))` - Tuple containing the training data and hold-out data as vectors.
+/// * `Err(String)` - Error message if loading or partitioning fails.
+///
+/// # Errors
+/// Returns an error if:
+/// - The data file cannot be loaded.
+/// - The data file contains no candle data.
+/// - There is not enough data for a meaningful train/hold-out split.
 fn prepare_data(data_config: &DataConfig) -> Result<(Vec<OHLCV>, Vec<OHLCV>), String> {
     log::info!("Loading data from '{}'...", data_config.file_path);
     let all_candles = load_csv(Path::new(&data_config.file_path))

@@ -3,10 +3,12 @@ pub mod mapper;
 
 use crate::config::{GaConfig, MetricsConfig};
 use crate::data::OHLCV;
+use crate::evaluation::backtester::BacktestResult;
 use crate::evaluation::walk_forward::WalkForwardValidator;
 use crate::evolution::grammar::Grammar;
 use crate::evolution::mapper::GrammarBasedMapper;
-use log::{debug, info};
+use crate::strategy::Strategy;
+use log::{debug, error, info};
 use rand::prelude::*;
 use rand::rng;
 
@@ -163,7 +165,11 @@ impl<'a> EvolutionEngine<'a> {
 
         (mapping_failures, vm_errors)
     }
+
+    /// A function which delegates the actual evaluation of a a genome to the WalkForwardValidator
+    /// and then aggregates the result to send them upstream.
     fn calculate_fitness(&mut self, genome: &Genome) -> (f64, bool, bool) {
+        // Step 1: Map genome to strategy
         let strategy = match self.mapper.map(genome) {
             Ok(s) => s,
             Err(e) => {
@@ -175,39 +181,96 @@ impl<'a> EvolutionEngine<'a> {
             }
         };
 
+        // Step 2: Validate strategy has required components
         if !strategy.programs.contains_key("entry") {
             debug!("Strategy missing entry program. Assigning catastrophic fitness.");
             return (INFINITE_PENALTY, true, false);
         }
 
-        // --- DELEGATION TO THE WALK-FORWARD ENGINE ---
-        // The EvolutionEngine's ONLY job is to call the validator.
+        // Step 3: Create and configure walk-forward validator
+        let validator = match WalkForwardValidator::new(
+            self.config.training_window_size,
+            self.config.test_window_size,
+            self.metrics_params.risk_free_rate,
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                error!("Failed to create walk-forward validator: {}", e);
+                return (INFINITE_PENALTY, false, true); // Treat as VM error
+            }
+        };
+
+        // Step 4: Run walk-forward validation
+        let result = match validator.validate(self.candles, &strategy) {
+            Ok(r) => r,
+            Err(e) => {
+                debug!("Walk-forward validation failed: {}", e);
+                return (INFINITE_PENALTY, false, true); // VM/validation error
+            }
+        };
+
+        // Step 5: Check for execution errors
+        if result.entry_error_count > 0 || result.exit_error_count > 0 {
+            debug!(
+                "Strategy execution errors - Entry: {}, Exit: {}",
+                result.entry_error_count, result.exit_error_count
+            );
+            return (INFINITE_PENALTY, false, true);
+        }
+
+        // Step 6: Calculate Calmar ratio with smoothing
+        let smoothing_constant = self.config.alpha;
+        let calmar = if result.max_drawdown.abs() < 1e-9 {
+            // Handle near-zero drawdown case
+            if result.annualized_return > 0.0 {
+                result.annualized_return / smoothing_constant // Conservative approach
+            } else {
+                result.annualized_return // Negative returns get full penalty
+            }
+        } else {
+            result.annualized_return / (smoothing_constant + result.max_drawdown)
+        };
+
+        // Step 7: Apply parsimony pressure
+        let total_opcodes = strategy.programs.values().map(|p| p.len()).sum::<usize>() as f64;
+        let penalty = total_opcodes * self.config.parsimony_penalty;
+
+        // Step 8: Calculate final fitness
+        let fitness = if calmar > 0.0 {
+            calmar * (1.0 - penalty).max(0.0)
+        } else {
+            // For negative Calmar, don't apply parsimony bonus
+            calmar
+        };
+
+        debug!(
+            "Fitness calculation: annualized_return={:.4}, max_drawdown={:.4}, calmar={:.4}, opcodes={}, penalty={:.4}, final_fitness={:.4}",
+            result.annualized_return,
+            result.max_drawdown,
+            calmar,
+            total_opcodes as u32,
+            penalty,
+            fitness
+        );
+
+        (fitness, false, false)
+    }
+
+    // Optional: Add this helper method for better error handling and metrics
+    fn validate_and_evaluate_strategy(
+        &mut self,
+        strategy: &Strategy,
+    ) -> Result<BacktestResult, String> {
         let validator = WalkForwardValidator::new(
             self.config.training_window_size,
             self.config.test_window_size,
             self.metrics_params.risk_free_rate,
-        );
+        )
+        .map_err(|e| format!("Validator creation failed: {}", e))?;
 
-        let result = validator.validate(self.candles, &strategy);
-        // --- END DELEGATION ---
-
-        if result.entry_error_count > 0 || result.exit_error_count > 0 {
-            return (INFINITE_PENALTY, false, true);
-        }
-        
-        let smoothing_constant = self.config.alpha;
-        let calmar = result.annualized_return / (smoothing_constant + result.max_drawdown);
-
-        let total_opcodes = strategy.programs.values().map(|p| p.len()).sum::<usize>() as f64;
-        let penalty = total_opcodes * self.config.parsimony_penalty;
-
-        let fitness = if calmar > 0.0 {
-            calmar * (1.0 - penalty).max(0.0)
-        } else {
-            calmar
-        };
-
-        (fitness, false, false)
+        validator
+            .validate(self.candles, strategy)
+            .map_err(|e| format!("Validation failed: {}", e))
     }
     fn select_parents(&self) -> Vec<Individual> {
         let tournament_size = self.config.tournament_size;
@@ -661,24 +724,26 @@ mod tests {
         let config = get_test_config();
         let metrics_config = get_metrics_config();
         let grammar = get_test_grammar();
-        let candles = get_test_candles();
+        let candles = get_test_candles_extended();
         let mut engine = EvolutionEngine::new(&config, &metrics_config, &grammar, &candles);
 
-        // This should complete without panicking
         engine.initialize_population();
         let initial_pop_size = engine.population.len();
 
         // Run evaluation
         let (_mapping_failures, _vm_errors) = engine.evaluate_population();
 
-        // Select parents
+        // Manually set varied fitness values to test selection properly
+        for (i, individual) in engine.population.iter_mut().enumerate() {
+            individual.fitness = i as f64; // 0, 1, 2, 3, ..., 9
+        }
+
         let parents = engine.select_parents();
         assert_eq!(parents.len(), initial_pop_size);
 
-        // Create next generation
         let mut next_generation = Vec::new();
 
-        // Elitism
+        // Elitism - carry over the best individual
         if let Some(best) = engine.population.iter().max_by(|a, b| {
             a.fitness
                 .partial_cmp(&b.fitness)
@@ -687,10 +752,11 @@ mod tests {
             next_generation.push(best.clone());
         }
 
-        // Breeding
+        // Realistic breeding loop
+        let mut parent_idx = 0;
         while next_generation.len() < config.population_size {
-            let parent1 = &parents[0]; // Simplified selection
-            let parent2 = &parents[1 % parents.len()];
+            let parent1 = &parents[parent_idx % parents.len()];
+            let parent2 = &parents[(parent_idx + 1) % parents.len()];
 
             let mut child_genome = engine.crossover(&parent1.genome, &parent2.genome);
             engine.mutate(&mut child_genome);
@@ -699,14 +765,42 @@ mod tests {
                 genome: child_genome,
                 fitness: f64::NEG_INFINITY,
             });
+
+            parent_idx += 2; // Move to next pair of parents
         }
 
         // Verify next generation is valid
         assert_eq!(next_generation.len(), config.population_size);
-        assert!(next_generation[0].fitness != f64::NEG_INFINITY); // Elite should have fitness
 
+        // The elite should have the highest fitness from previous generation (9.0)
+        assert_eq!(next_generation[0].fitness, 9.0);
+
+        // All others should be unevaluated
         for i in 1..next_generation.len() {
-            assert_eq!(next_generation[i].fitness, f64::NEG_INFINITY); // Others should be unevaluated
+            assert_eq!(next_generation[i].fitness, f64::NEG_INFINITY);
         }
+
+        // Verify genomes are actually different (breeding occurred)
+        let elite_genome = &next_generation[0].genome;
+        let mut genomes_differ = false;
+        for i in 1..next_generation.len() {
+            if next_generation[i].genome != *elite_genome {
+                genomes_differ = true;
+                break;
+            }
+        }
+        assert!(genomes_differ, "Breeding should produce different genomes");
+    } // Add this helper function for sufficient test data
+    fn get_test_candles_extended() -> Vec<OHLCV> {
+        (1..=10)
+            .map(|i| OHLCV {
+                timestamp: i,
+                open: 100.0 + i as f64,
+                high: 105.0 + i as f64,
+                low: 95.0 + i as f64,
+                close: 102.0 + i as f64,
+                volume: 1000.0,
+            })
+            .collect()
     }
 }
