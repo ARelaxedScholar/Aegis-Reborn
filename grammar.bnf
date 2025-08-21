@@ -23,7 +23,8 @@
 <operand> ::= <indicator> | <price> | <dynamic_constant> | <static_constant>
 
 # Static, absolute constants, useful for RSI levels, etc.
-<static_constant> ::= -1.0 | 0.0 | 1.0 | 30.0 | 50.0 | 70.0 | 100.0
+# Next target for optimization, the grammar is too simple.
+<static_constant> ::= -1.0 | 0.0 | 1.0 | 30.0 | 50.0 | 70.0 | 100.0 | 10000.0 | 20000.0 | 30000.0 | 40000.0 | 50000.0 | 60000.0
 
 # Dynamic, relative constants, crucial for high-value assets.
 <dynamic_constant> ::= CLOSE_P1 | CLOSE_M1 | SMA20_P2 | SMA20_M2

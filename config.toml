@@ -9,9 +9,9 @@ hold_out_split = 0.3 # 30% of data is reserved for the final, unbiased test
 
 [ga]
 # Genetic Algorithm Parameters
-population_size = 100
-num_generations = 50
-mutation_rate = 0.25
+population_size = 2_000
+num_generations = 200
+mutation_rate = 0.1
 crossover_rate = 0.9
 tournament_size = 3
 initial_genome_length = 100
