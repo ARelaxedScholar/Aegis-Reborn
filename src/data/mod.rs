@@ -56,7 +56,7 @@ impl Default for LoadConfig {
 }
 
 /// Represents a single OHLCV candle.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct OHLCV {
     pub timestamp: i64,
     pub open: f64,

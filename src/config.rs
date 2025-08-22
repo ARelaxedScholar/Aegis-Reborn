@@ -14,7 +14,7 @@ pub struct DataConfig {
     pub hold_out_split: f64,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub struct GaConfig {
     pub population_size: usize,
     pub num_generations: usize,

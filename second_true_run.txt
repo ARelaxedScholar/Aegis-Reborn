@@ -1,0 +1,180 @@
+
+[Rank 1] Fitness: 3.2361
+Strategy {
+    programs: {
+        "entry": [
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            LessThan,
+        ],
+        "exit": [
+            PushIndicator(
+                Rsi(
+                    14,
+                ),
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            PushConstant(
+                30.0,
+            ),
+            Divide,
+            LessThan,
+        ],
+    },
+}
+
+[Rank 2] Fitness: 3.2361
+Strategy {
+    programs: {
+        "entry": [
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            LessThan,
+        ],
+        "exit": [
+            PushIndicator(
+                Rsi(
+                    14,
+                ),
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            PushConstant(
+                30.0,
+            ),
+            Divide,
+            LessThan,
+        ],
+    },
+}
+
+[Rank 3] Fitness: 3.2361
+Strategy {
+    programs: {
+        "exit": [
+            PushIndicator(
+                Rsi(
+                    14,
+                ),
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            PushConstant(
+                30.0,
+            ),
+            Divide,
+            LessThan,
+        ],
+        "entry": [
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            LessThan,
+        ],
+    },
+}
+
+[Rank 4] Fitness: 3.2361
+Strategy {
+    programs: {
+        "entry": [
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            LessThan,
+        ],
+        "exit": [
+            PushIndicator(
+                Rsi(
+                    14,
+                ),
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            PushConstant(
+                30.0,
+            ),
+            Divide,
+            LessThan,
+        ],
+    },
+}
+
+[Rank 5] Fitness: 3.2361
+Strategy {
+    programs: {
+        "entry": [
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            LessThan,
+        ],
+        "exit": [
+            PushIndicator(
+                Rsi(
+                    14,
+                ),
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            PushConstant(
+                30.0,
+            ),
+            Divide,
+            LessThan,
+        ],
+    },
+}
