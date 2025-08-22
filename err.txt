@@ -1,16 +1,54 @@
-   Compiling aegis-reborn v0.1.0 (/home/arelaxedscholar/Documents/Coding/aegis-reborn)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.46s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
      Running unittests src/lib.rs (target/debug/deps/aegis_reborn-2c33628b200cbab9)
 
-running 53 tests
+running 91 tests
 test data::tests::test_date_to_timestamp_conversion ... ok
 test data::tests::test_ohlcv_validation ... ok
 test evaluation::backtester::tests::test_drawdown_calculation ... ok
 test evaluation::backtester::tests::test_entry_only_strategy_holds_forever ... ok
 test evaluation::backtester::tests::test_exit_only_strategy_does_nothing ... ok
 test evaluation::backtester::tests::test_vm_error_on_entry_is_logged ... ok
-test evaluation::gauntlet::tests::test_block_creation ... ok
-test evaluation::gauntlet::tests::test_candle_validation ... ok
+test evaluation::gauntlet::tests::test_block_bootstrap_with_high_overlap ... ok
+test evaluation::gauntlet::tests::test_block_bootstrap_with_high_overlap_explicit ... ok
+test evaluation::gauntlet::tests::test_bootstrap_config_defaults ... ok
+test evaluation::gauntlet::tests::test_build_intrabar_samples_insufficient_data ... ok
+test evaluation::gauntlet::tests::test_build_intrabar_samples_normal ... ok
+test evaluation::gauntlet::tests::test_calculate_bootstrap_statistics_empty ... ok
+test evaluation::gauntlet::tests::test_calculate_bootstrap_statistics_normal ... ok
+test evaluation::gauntlet::tests::test_calculate_bootstrap_statistics_single_result ... ok
+test evaluation::gauntlet::tests::test_candle_validation_high_too_low ... ok
+test evaluation::gauntlet::tests::test_bootstrap_performance_small ... ok
+test evaluation::gauntlet::tests::test_candle_validation_infinite_values ... ok
+test evaluation::gauntlet::tests::test_candle_validation_low_too_high ... ok
+test evaluation::gauntlet::tests::test_candle_validation_negative_prices ... ok
+test evaluation::gauntlet::tests::test_candle_validation_nan_values ... ok
+test evaluation::gauntlet::tests::test_candle_validation_normal ... ok
+test evaluation::gauntlet::tests::test_extract_strategy_returns_with_equity_curve ... ok
+test evaluation::gauntlet::tests::test_extract_strategy_returns_no_data ... ok
+test evaluation::gauntlet::tests::test_extreme_price_movements ... ok
+test evaluation::gauntlet::tests::test_gauntlet_error_display ... ok
+test evaluation::gauntlet::tests::test_generate_synthetic_candles_empty_data ... ok
+test evaluation::gauntlet::tests::test_log_returns_calculation_normal ... ok
+test evaluation::gauntlet::tests::test_generate_synthetic_candles_normal ... ok
+test evaluation::gauntlet::tests::test_log_returns_empty_data ... ok
+test evaluation::gauntlet::tests::test_log_returns_negative_price ... ok
+test evaluation::gauntlet::tests::test_end_to_end_log_returns_to_synthetic ... ok
+test evaluation::gauntlet::tests::test_log_returns_single_candle ... ok
+test evaluation::gauntlet::tests::test_log_returns_zero_price ... ok
+test evaluation::gauntlet::tests::test_minimal_valid_dataset ... ok
+test evaluation::gauntlet::tests::test_overlapping_blocks_insufficient_data ... ok
+test evaluation::gauntlet::tests::test_overlapping_blocks_normal ... ok
+test evaluation::gauntlet::tests::test_overlapping_blocks_zero_overlap ... ok
+test evaluation::gauntlet::tests::test_resample_blocks_empty_blocks ... ok
+test evaluation::gauntlet::tests::test_resample_blocks_exact_length ... ok
+test evaluation::gauntlet::tests::test_resample_blocks_normal ... ok
+test evaluation::gauntlet::tests::test_validate_inputs_corrupted_training_data ... ok
+test evaluation::gauntlet::tests::test_validate_inputs_insufficient_holdout_data ... ok
+test evaluation::gauntlet::tests::test_validate_inputs_insufficient_training_data ... ok
+test evaluation::gauntlet::tests::test_validate_inputs_invalid_risk_free_rate ... ok
+test evaluation::gauntlet::tests::test_validate_inputs_no_champions ... ok
+test evaluation::gauntlet::tests::test_validate_inputs_normal ... ok
+test evaluation::gauntlet::tests::test_validate_inputs_zero_bootstrap_runs ... ok
 test evaluation::walk_forward::tests::test_getters ... ok
 test evaluation::walk_forward::tests::test_parameter_validation ... ok
 test evaluation::walk_forward::tests::test_validator_creation ... ok
@@ -21,12 +59,11 @@ test evolution::mapper::tests::test_optional_exit_is_respected ... ok
 test evolution::tests::test_crossover ... ok
 test evolution::mapper::tests::test_token_limit_enforced ... ok
 test evolution::tests::test_crossover_empty_genomes ... ok
-test evaluation::gauntlet::tests::test_log_returns_calculation ... ok
 test evolution::tests::test_fitness_handles_mapping_error ... ok
 test evolution::tests::test_elitism_preservation ... ok
 test evolution::tests::test_initialize_population ... ok
-test evolution::tests::test_mutation ... ok
 test evolution::tests::test_mapping_failure_counting ... ok
+test evolution::tests::test_mutation ... ok
 test evolution::tests::test_mutation_empty_genome ... ok
 test evolution::tests::test_full_generation_cycle ... ok
 test evolution::tests::test_population_size_maintained ... ok
@@ -49,15 +86,15 @@ test vm::engine::tests::test_stack_overflow ... ok
 test vm::engine::tests::test_stack_underflow ... ok
 test vm::engine::tests::test_state_management_store_and_load ... ok
 test data::tests::test_missing_columns_detection ... ok
-test data::tests::test_load_csv_with_date_strings ... ok
-test data::tests::test_numeric_timestamp_fallback ... ok
+test data::tests::test_load_csv_case_insensitive_columns ... ok
+test data::tests::test_prefer_adj_close ... ok
 test data::tests::test_real_world_data_format ... ok
 test data::tests::test_invalid_date_format ... ok
-test data::tests::test_prefer_adj_close ... ok
-test data::tests::test_load_csv_case_insensitive_columns ... ok
+test data::tests::test_numeric_timestamp_fallback ... ok
+test data::tests::test_load_csv_with_date_strings ... ok
 test data::tests::test_config_options ... ok
 
-test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 91 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 
      Running unittests src/main.rs (target/debug/deps/aegis_reborn-fb4cda903e2360f8)
 
