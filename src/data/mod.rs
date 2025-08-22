@@ -131,10 +131,10 @@ fn parse_date_to_timestamp(date_str: &str) -> Result<i64, String> {
         .map_err(|_| format!("Invalid day in date: {}", date_str))?;
 
     // Basic validation
-    if month < 1 || month > 12 {
+    if !(1..=12).contains(&month) {
         return Err(format!("Invalid month {} in date: {}", month, date_str));
     }
-    if day < 1 || day > 31 {
+    if !(1..=31).contains(&day) {
         return Err(format!("Invalid day {} in date: {}", day, date_str));
     }
 
@@ -355,11 +355,10 @@ pub fn load_csv_with_config(file_path: &Path, config: LoadConfig) -> Result<Vec<
         });
 
         // Validate timestamp range if configured
-        if config.validate_timestamps {
-            if timestamp < config.min_timestamp || timestamp > config.max_timestamp {
+        if config.validate_timestamps && (timestamp < config.min_timestamp || timestamp > config.max_timestamp) {
                 return Err(DataError::InvalidTimestamp { row: i, timestamp });
             }
-        }
+        
 
         let candle = OHLCV {
             timestamp,
