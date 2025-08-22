@@ -133,6 +133,12 @@ pub struct Backtester {
     vm: VirtualMachine,
 }
 
+impl Default for Backtester {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Backtester {
     pub fn new() -> Self {
         Self {

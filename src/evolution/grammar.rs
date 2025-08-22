@@ -39,7 +39,7 @@ impl Grammar {
 
             let productions = parts[1]
                 .split('|')
-                .map(|p| p.trim().split_whitespace().map(String::from).collect())
+                .map(|p| p.split_whitespace().map(String::from).collect())
                 .collect();
 
             rules.insert(non_terminal, productions);

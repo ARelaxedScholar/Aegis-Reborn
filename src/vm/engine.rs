@@ -25,6 +25,11 @@ pub struct VirtualMachine {
     memory: [f64; MEMORY_SIZE],
 }
 
+impl Default for VirtualMachine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl VirtualMachine {
     pub fn new() -> Self {
         Self {
