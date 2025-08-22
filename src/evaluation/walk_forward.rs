@@ -359,9 +359,10 @@ impl WalkForwardValidator {
                     window_idx, initial_test_equity
                 );
                 // Simply extend with the last equity value for each point
-                composite_equity_curve.extend(
-                    std::iter::repeat_n(last_equity,result.equity_curve.len().saturating_sub(1))
-                );
+                composite_equity_curve.extend(std::iter::repeat_n(
+                    last_equity,
+                    result.equity_curve.len().saturating_sub(1),
+                ));
             } else {
                 // Normal rebasing: scale the window results relative to where we left off
                 for equity_point in result.equity_curve.iter().skip(1) {

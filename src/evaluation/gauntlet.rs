@@ -633,7 +633,6 @@ fn resample_blocks(
     Ok(resampled)
 }
 
-
 /// Calculate comprehensive bootstrap statistics
 fn calculate_bootstrap_statistics(results: &[BacktestResult]) -> Result<BootstrapStats, String> {
     if results.is_empty() {
@@ -667,7 +666,7 @@ fn calculate_bootstrap_statistics(results: &[BacktestResult]) -> Result<Bootstra
 
     // Sort equities for statistics
     equities.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    
+
     let n = equities.len();
     let avg_equity = equities.iter().sum::<f64>() / n as f64;
     let median_equity = if n % 2 == 0 {
@@ -675,25 +674,28 @@ fn calculate_bootstrap_statistics(results: &[BacktestResult]) -> Result<Bootstra
     } else {
         equities[n / 2]
     };
-    
+
     let worst_equity = equities[0];
     let best_equity = equities[n - 1];
-    
-    let profitable_count = equities.iter()
+
+    let profitable_count = equities
+        .iter()
         .filter(|&&equity| equity > crate::evaluation::backtester::INITIAL_CASH)
         .count();
     let profitable_percentage = (profitable_count as f64 / n as f64) * 100.0;
-    
+
     // Sample standard deviation for volatility
     let variance = if n > 1 {
-        equities.iter()
+        equities
+            .iter()
             .map(|&e| (e - avg_equity).powi(2))
-            .sum::<f64>() / (n - 1) as f64
+            .sum::<f64>()
+            / (n - 1) as f64
     } else {
         0.0
     };
     let volatility = variance.sqrt();
-    
+
     // 95% confidence interval
     let ci_lower_idx = ((n - 1) as f64 * 0.025).round() as usize;
     let ci_upper_idx = ((n - 1) as f64 * 0.975).round() as usize;
@@ -1371,24 +1373,24 @@ mod tests {
     }
 
     // Strategy Return Extraction Tests
-#[test]
-fn test_extract_strategy_returns_with_equity_curve() {
-    let backtest_result = BacktestResult {
-        final_equity: 120.0,
-        equity_curve: vec![100.0, 101.0, 102.02, 103.0404],
-        sharpe_ratio: 1.5,
-        max_drawdown: 0.05,
-        annualized_return: 0.15,
-        entry_error_count: 0,
-        exit_error_count: 0,
-    };
-    let returns = extract_strategy_returns(&backtest_result).unwrap();
-    
-    assert_eq!(returns.len(), 3);
-    assert!((returns[0] - 0.01).abs() < 1e-10);                    // 1%
-    assert!((returns[1] - 0.01009901).abs() < 1e-6);              // ~1.0099%
-    assert!((returns[2] - 0.01000196).abs() < 1e-6);              // ~1.0002%
-}
+    #[test]
+    fn test_extract_strategy_returns_with_equity_curve() {
+        let backtest_result = BacktestResult {
+            final_equity: 120.0,
+            equity_curve: vec![100.0, 101.0, 102.02, 103.0404],
+            sharpe_ratio: 1.5,
+            max_drawdown: 0.05,
+            annualized_return: 0.15,
+            entry_error_count: 0,
+            exit_error_count: 0,
+        };
+        let returns = extract_strategy_returns(&backtest_result).unwrap();
+
+        assert_eq!(returns.len(), 3);
+        assert!((returns[0] - 0.01).abs() < 1e-10); // 1%
+        assert!((returns[1] - 0.01009901).abs() < 1e-6); // ~1.0099%
+        assert!((returns[2] - 0.01000196).abs() < 1e-6); // ~1.0002%
+    }
 
     #[test]
     fn test_extract_strategy_returns_no_data() {
@@ -1404,11 +1406,7 @@ fn test_extract_strategy_returns_with_equity_curve() {
 
         let result = extract_strategy_returns(&backtest_result);
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .contains("Insufficient")
-        );
+        assert!(result.unwrap_err().contains("Insufficient"));
     }
 
     // Bootstrap Statistics Tests

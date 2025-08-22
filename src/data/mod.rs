@@ -214,19 +214,11 @@ fn detect_columns(
         .ok_or_else(|| DataError::MissingColumns("Low column".to_string()))?;
 
     // For close, prefer Adj Close if available, otherwise use Close
-    let close_col = if columns.iter().any(|c| c == "Adj Close") {
-        "Adj Close".to_string()
-    } else if columns.iter().any(|c| c == "Close") {
-        "Close".to_string()
-    } else if columns.iter().any(|c| c == "close") {
-        "close".to_string()
-    } else if columns.iter().any(|c| c == "CLOSE") {
-        "CLOSE".to_string()
-    } else {
-        return Err(DataError::MissingColumns(
-            "Close/Adj Close column".to_string(),
-        ));
-    };
+    let close_col = ["Adj Close", "Close", "close", "CLOSE"]
+        .iter()
+        .find(|&&col| columns.iter().any(|c| c == col))
+        .map(|s| s.to_string())
+        .ok_or_else(|| DataError::MissingColumns("Close/Adj Close column".to_string()))?;
 
     let volume_col = ["Volume", "volume", "VOLUME", "Vol", "vol"]
         .iter()
@@ -258,6 +250,9 @@ pub fn load_csv_with_config(file_path: &Path, config: LoadConfig) -> Result<Vec<
     let high_col_data = df.column(&high_col)?.f64()?;
     let low_col_data = df.column(&low_col)?.f64()?;
     let close_col_data = df.column(&close_col)?.f64()?;
+
+    // binding must be declared first to prevent
+    // a lifetime error with the compiler. (I tried the other way ;-;)
     let binding = df.column(&volume_col)?.cast(&DataType::Float64)?;
     let volume_col_data = binding.f64()?;
 
@@ -355,10 +350,11 @@ pub fn load_csv_with_config(file_path: &Path, config: LoadConfig) -> Result<Vec<
         });
 
         // Validate timestamp range if configured
-        if config.validate_timestamps && (timestamp < config.min_timestamp || timestamp > config.max_timestamp) {
-                return Err(DataError::InvalidTimestamp { row: i, timestamp });
-            }
-        
+        if config.validate_timestamps
+            && (timestamp < config.min_timestamp || timestamp > config.max_timestamp)
+        {
+            return Err(DataError::InvalidTimestamp { row: i, timestamp });
+        }
 
         let candle = OHLCV {
             timestamp,
