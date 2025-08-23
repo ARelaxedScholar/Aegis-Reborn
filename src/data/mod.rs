@@ -35,9 +35,9 @@ pub struct LoadConfig {
     /// Use adjusted close instead of close price
     pub use_adjusted_close: bool,
     /// Expected date column name
-    pub date_column: String,
+    pub date: String,
     /// Expected volume column name  
-    pub volume_column: String,
+    pub volume: String,
 }
 
 impl Default for LoadConfig {
@@ -49,8 +49,8 @@ impl Default for LoadConfig {
             min_timestamp: 946684800,  // 2000-01-01
             max_timestamp: 4102444800, // 2100-01-01
             use_adjusted_close: true,
-            date_column: "Date".to_string(),
-            volume_column: "Volume".to_string(),
+            date: "Date".to_string(),
+            volume: "Volume".to_string(),
         }
     }
 }
@@ -139,16 +139,23 @@ fn parse_date_to_timestamp(date_str: &str) -> Result<i64, String> {
     }
 
     // Convert to Unix timestamp (days since 1970-01-01)
-    let date = chrono::NaiveDate::from_ymd_opt(year, month, day).ok_or_else(|| format!("Invalid date (YYYY-MM-DD): {year}-{month}-{day}"))?;
+    let date = chrono::NaiveDate::from_ymd_opt(year, month, day)
+        .ok_or_else(|| format!("Invalid date (YYYY-MM-DD): {year}-{month}-{day}"))?;
     // we already checked we had a valid date above.
-    let datetime = date.and_hms_opt(0,0,0).unwrap().and_utc().timestamp();
+    let datetime = date.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
     Ok(datetime)
 }
 
+struct ColumnNames {
+    date: String,
+    open: String,
+    high: String,
+    low: String,
+    close: String,
+    volume: String,
+}
 /// Detects the column mapping for the CSV file
-fn detect_columns(
-    df: &DataFrame,
-) -> Result<(String, String, String, String, String, String), DataError> {
+fn detects(df: &DataFrame) -> Result<ColumnNames, DataError> {
     let columns: Vec<String> = df
         .get_column_names()
         .iter()
@@ -156,7 +163,7 @@ fn detect_columns(
         .collect();
 
     // Map common column name variations
-    let date_col = [
+    let date = [
         "Date",
         "date",
         "DATE",
@@ -169,38 +176,45 @@ fn detect_columns(
     .map(|s| s.to_string())
     .ok_or_else(|| DataError::MissingColumns("Date/timestamp column".to_string()))?;
 
-    let open_col = ["Open", "open", "OPEN"]
+    let open = ["Open", "open", "OPEN"]
         .iter()
         .find(|&&col| columns.iter().any(|c| c == col))
         .map(|s| s.to_string())
         .ok_or_else(|| DataError::MissingColumns("Open column".to_string()))?;
 
-    let high_col = ["High", "high", "HIGH"]
+    let high = ["High", "high", "HIGH"]
         .iter()
         .find(|&&col| columns.iter().any(|c| c == col))
         .map(|s| s.to_string())
         .ok_or_else(|| DataError::MissingColumns("High column".to_string()))?;
 
-    let low_col = ["Low", "low", "LOW"]
+    let low = ["Low", "low", "LOW"]
         .iter()
         .find(|&&col| columns.iter().any(|c| c == col))
         .map(|s| s.to_string())
         .ok_or_else(|| DataError::MissingColumns("Low column".to_string()))?;
 
     // For close, prefer Adj Close if available, otherwise use Close
-    let close_col = ["Adj Close", "Close", "close", "CLOSE"]
+    let close = ["Adj Close", "Close", "close", "CLOSE"]
         .iter()
         .find(|&&col| columns.iter().any(|c| c == col))
         .map(|s| s.to_string())
         .ok_or_else(|| DataError::MissingColumns("Close/Adj Close column".to_string()))?;
 
-    let volume_col = ["Volume", "volume", "VOLUME", "Vol", "vol"]
+    let volume = ["Volume", "volume", "VOLUME", "Vol", "vol"]
         .iter()
         .find(|&&col| columns.iter().any(|c| c == col))
         .map(|s| s.to_string())
         .ok_or_else(|| DataError::MissingColumns("Volume column".to_string()))?;
 
-    Ok((date_col, open_col, high_col, low_col, close_col, volume_col))
+    Ok(ColumnNames {
+        date,
+        open,
+        high,
+        low,
+        close,
+        volume,
+    })
 }
 
 /// Loads OHLCV data from a CSV file into a Vec with enhanced validation and performance.
@@ -216,18 +230,25 @@ pub fn load_csv_with_config(file_path: &Path, config: LoadConfig) -> Result<Vec<
         .finish()?;
 
     // Auto-detect column names
-    let (date_col, open_col, high_col, low_col, close_col, volume_col) = detect_columns(&df)?;
+    let ColumnNames {
+        date,
+        open,
+        high,
+        low,
+        close,
+        volume,
+    } = detects(&df)?;
 
     // Extract columns - handle both string dates and numeric timestamps
-    let date_series = df.column(&date_col)?;
-    let open_col_data = df.column(&open_col)?.f64()?;
-    let high_col_data = df.column(&high_col)?.f64()?;
-    let low_col_data = df.column(&low_col)?.f64()?;
-    let close_col_data = df.column(&close_col)?.f64()?;
+    let date_series = df.column(&date)?;
+    let open_col_data = df.column(&open)?.f64()?;
+    let high_col_data = df.column(&high)?.f64()?;
+    let low_col_data = df.column(&low)?.f64()?;
+    let close_col_data = df.column(&close)?.f64()?;
 
     // binding must be declared first to prevent
     // a lifetime error with the compiler. (I tried the other way ;-;)
-    let binding = df.column(&volume_col)?.cast(&DataType::Float64)?;
+    let binding = df.column(&volume)?.cast(&DataType::Float64)?;
     let volume_col_data = binding.f64()?;
 
     // Check for null values if configured to fail on them
@@ -387,7 +408,7 @@ mod tests {
     }
 
     #[test]
-    fn test_load_csv_case_insensitive_columns() {
+    fn test_load_csv_case_insensitives() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("lowercase_data.csv");
         let mut file = File::create(&file_path).unwrap();
@@ -414,7 +435,7 @@ mod tests {
     }
 
     #[test]
-    fn test_missing_columns_detection() {
+    fn test_missings_detection() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("missing_data.csv");
         let mut file = File::create(&file_path).unwrap();
