@@ -1,2 +1,2 @@
     Checking aegis-reborn v0.1.0 (/home/arelaxedscholar/Documents/Coding/aegis-reborn)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.24s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.19s

@@ -28,6 +28,7 @@ pub struct GaConfig {
     pub alpha: f64,
     pub training_window_size: usize,
     pub test_window_size: usize,
+    pub size_of_council: usize,
 }
 
 #[derive(Deserialize, Debug)]
@@ -66,6 +67,12 @@ impl Config {
                 "The training and test window sizes must be at least 2 for meaningful analysis"
                     .to_string(),
             );
+        }
+        if self.ga.size_of_council == 0 {
+            return Err("ga.size_of_council must be at least 2".to_string());
+        }
+        if self.ga.size_of_council > self.ga.population_size {
+            return Err("ga.size_of_council cannot be bigger than population size".to_string());
         }
         if self.metrics.bootstrap_runs < 1 {
             return Err("bootstrap_runs must be at least 1, a good default is 1_000, 2000, you might observe diminising returns beyond that".to_string());
