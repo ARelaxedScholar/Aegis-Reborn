@@ -139,36 +139,10 @@ fn parse_date_to_timestamp(date_str: &str) -> Result<i64, String> {
     }
 
     // Convert to Unix timestamp (days since 1970-01-01)
-    // This is a simplified calculation - for production use a proper date library
-    let days_since_1970 = days_since_epoch(year, month, day);
-    Ok(days_since_1970 * 24 * 60 * 60) // Convert days to seconds
-}
-
-/// Calculate days since Unix epoch (1970-01-01)
-/// Simplified calculation - doesn't handle all edge cases perfectly
-fn days_since_epoch(year: i32, month: u32, day: u32) -> i64 {
-    let mut days = 0i64;
-
-    // Add days for complete years since 1970
-    for y in 1970..year {
-        days += if is_leap_year(y) { 366 } else { 365 };
-    }
-
-    // Add days for complete months in the current year
-    let days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    for m in 1..month {
-        days += days_in_month[(m - 1) as usize] as i64;
-        if m == 2 && is_leap_year(year) {
-            days += 1; // Add leap day
-        }
-    }
-
-    // Add remaining days
-    days + (day - 1) as i64
-}
-
-fn is_leap_year(year: i32) -> bool {
-    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+    let date = chrono::NaiveDate::from_ymd_opt(year, month, day).ok_or_else(|| format!("Invalid date (YYYY-MM-DD): {year}-{month}-{day}"))?;
+    // we already checked we had a valid date above.
+    let datetime = date.and_hms_opt(0,0,0).unwrap().and_utc().timestamp();
+    Ok(datetime)
 }
 
 /// Detects the column mapping for the CSV file
