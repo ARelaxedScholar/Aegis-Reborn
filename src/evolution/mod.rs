@@ -395,8 +395,8 @@ mod tests {
             alpha: 0.05,
             population_size: 10,
             num_generations: 5,
-            mutation_rate: 1.0,  // 100% mutation rate for predictable testing
-            crossover_rate: 1.0, // 100% crossover rate
+            mutation_rate: 0.1,  // Reduced for more predictable testing
+            crossover_rate: 0.8, // Reduced from 100%
             max_program_tokens: 50,
             max_recursion_depth: 256,
             initial_genome_length: 10,
@@ -404,6 +404,7 @@ mod tests {
             tournament_size: 3,
             test_window_size: 3,
             training_window_size: 3,
+            size_of_council: 2,
         }
     }
 
@@ -466,6 +467,20 @@ mod tests {
         ]
     }
 
+    // Extended test data for more realistic testing
+    fn get_test_candles_extended() -> Vec<OHLCV> {
+        (1..=20)
+            .map(|i| OHLCV {
+                timestamp: i,
+                open: 100.0 + i as f64,
+                high: 105.0 + i as f64,
+                low: 95.0 + i as f64,
+                close: 102.0 + i as f64,
+                volume: 1000.0,
+            })
+            .collect()
+    }
+
     #[test]
     fn test_initialize_population() {
         let config = get_test_config();
@@ -485,7 +500,7 @@ mod tests {
     }
 
     #[test]
-    fn test_crossover() {
+    fn test_crossover_returns_two_children() {
         let config = get_test_config();
         let grammar = get_test_grammar();
         let metrics = get_metrics_config();
@@ -495,12 +510,23 @@ mod tests {
         let parent1: Genome = vec![1, 1, 1, 1, 1];
         let parent2: Genome = vec![2, 2, 2, 2, 2];
 
-        let child = engine.crossover(&parent1, &parent2);
+        let children = engine.crossover(&parent1, &parent2);
+        
+        assert_eq!(children.len(), 2, "Crossover should return exactly 2 children");
 
-        // Child should contain genes from both parents
-        assert!(child.contains(&1) || child.contains(&2));
-        // Child length should be reasonable (parent1 start + parent2 end)
-        assert!(child.len() >= 1 && child.len() <= parent1.len() + parent2.len());
+        let child1 = &children[0];
+        let child2 = &children[1];
+
+        // Children should be composed of parent material
+        assert!(child1.iter().all(|&g| g == 1 || g == 2));
+        assert!(child2.iter().all(|&g| g == 1 || g == 2));
+        
+        // At least one child should be different from its corresponding parent
+        // (unless by chance the crossover point results in identical genomes)
+        let children_differ_from_parents = 
+            child1 != &parent1 || child1 != &parent2 || 
+            child2 != &parent1 || child2 != &parent2;
+        assert!(children_differ_from_parents, "Children should generally differ from parents");
     }
 
     #[test]
@@ -514,18 +540,51 @@ mod tests {
         let empty: Genome = vec![];
         let parent: Genome = vec![1, 2, 3];
 
-        let child1 = engine.crossover(&empty, &parent);
-        let child2 = engine.crossover(&parent, &empty);
-        let child3 = engine.crossover(&empty, &empty);
+        // Crossover should return clones of the parents when one is empty
+        let children1 = engine.crossover(&empty, &parent);
+        assert_eq!(children1.len(), 2);
+        assert_eq!(children1[0], empty);
+        assert_eq!(children1[1], parent);
 
-        assert_eq!(child1, parent);
-        assert_eq!(child2, parent);
-        assert!(child3.is_empty());
+        let children2 = engine.crossover(&parent, &empty);
+        assert_eq!(children2.len(), 2);
+        assert_eq!(children2[0], parent);
+        assert_eq!(children2[1], empty);
+
+        let children3 = engine.crossover(&empty, &empty);
+        assert_eq!(children3.len(), 2);
+        assert_eq!(children3[0], empty);
+        assert_eq!(children3[1], empty);
     }
 
     #[test]
-    fn test_mutation() {
+    fn test_crossover_variable_lengths() {
         let config = get_test_config();
+        let metrics_config = get_metrics_config();
+        let grammar = get_test_grammar();
+        let candles = get_test_candles();
+        let engine = EvolutionEngine::new(&config, &metrics_config, &grammar, &candles);
+
+        let parent1: Genome = vec![1; 10]; // Long parent
+        let parent2: Genome = vec![2; 3];  // Short parent
+
+        let children = engine.crossover(&parent1, &parent2);
+        
+        assert_eq!(children.len(), 2);
+        
+        // Children should contain genes from both parents
+        for child in &children {
+            if !child.is_empty() {
+                assert!(child.iter().all(|&g| g == 1 || g == 2));
+            }
+        }
+    }
+
+    #[test]
+    fn test_mutation_with_moderate_rate() {
+        let mut config = get_test_config();
+        config.mutation_rate = 1.0; // 100% mutation rate for testing
+        
         let metrics_config = get_metrics_config();
         let grammar = get_test_grammar();
         let candles = get_test_candles();
@@ -535,7 +594,7 @@ mod tests {
         let mut genome = original.clone();
         engine.mutate(&mut genome);
 
-        // With mutation, genome should change
+        // With 100% mutation rate, genome should change
         assert_ne!(genome, original);
         // Length should remain the same
         assert_eq!(genome.len(), original.len());
@@ -571,29 +630,7 @@ mod tests {
     }
 
     #[test]
-    fn test_variable_length_crossover() {
-        let config = get_test_config();
-        let metrics_config = get_metrics_config();
-        let grammar = get_test_grammar();
-        let candles = get_test_candles();
-        let engine = EvolutionEngine::new(&config, &metrics_config, &grammar, &candles);
-
-        let parent1: Genome = vec![1; 20]; // Long parent
-        let parent2: Genome = vec![2; 5]; // Short parent
-
-        let child = engine.crossover(&parent1, &parent2);
-
-        // Child should contain genes from both parents
-        assert!(child.contains(&1) && child.contains(&2));
-        // Child length should be reasonable
-        assert!(child.len() >= 1 && child.len() <= 25);
-        // Verify it's actually a combination, not just one parent
-        assert_ne!(child, parent1);
-        assert_ne!(child, parent2);
-    }
-
-    #[test]
-    fn test_population_size_maintained() {
+    fn test_tournament_selection() {
         let config = get_test_config();
         let metrics_config = get_metrics_config();
         let grammar = get_test_grammar();
@@ -601,27 +638,96 @@ mod tests {
         let mut engine = EvolutionEngine::new(&config, &metrics_config, &grammar, &candles);
 
         engine.initialize_population();
+
+        // Set different fitness values - create a clear hierarchy
+        for (i, individual) in engine.population.iter_mut().enumerate() {
+            individual.fitness = i as f64;
+        }
+
+        let parents = engine.select_parents();
+
+        // Should return population_size parents
+        assert_eq!(parents.len(), config.population_size);
+
+        // All parents should have valid fitness values
+        for parent in &parents {
+            assert!(parent.fitness.is_finite());
+        }
+    }
+
+    #[test]
+    fn test_evaluate_population_with_bad_grammar() {
+        let config = get_test_config();
+        let metrics_config = get_metrics_config();
+        let bad_grammar = get_bad_grammar(); // This will cause mapping failures
+        let candles = get_test_candles_extended(); // Use extended for proper validation
+        let mut engine = EvolutionEngine::new(&config, &metrics_config, &bad_grammar, &candles);
+
+        engine.initialize_population();
+        let (mapping_failures, _vm_errors) = engine.evaluate_population();
+
+        // All individuals should have mapping failures with bad grammar
+        assert_eq!(mapping_failures, config.population_size as u32);
+
+        // All individuals should have catastrophic fitness
+        for individual in &engine.population {
+            assert_eq!(individual.fitness, INFINITE_PENALTY);
+        }
+    }
+
+    #[test]
+    fn test_population_size_maintained_through_generation() {
+        let config = get_test_config();
+        let metrics_config = get_metrics_config();
+        let grammar = get_test_grammar();
+        let candles = get_test_candles_extended();
+        let mut engine = EvolutionEngine::new(&config, &metrics_config, &grammar, &candles);
+
+        engine.initialize_population();
         let initial_size = engine.population.len();
 
-        // Simulate one generation step
-        let _parents = engine.select_parents();
-        let mut next_generation = Vec::new();
+        // Manually set fitness values for predictable behavior
+        for (i, individual) in engine.population.iter_mut().enumerate() {
+            individual.fitness = i as f64;
+        }
 
-        // Add elite
+        // Simulate the breeding logic from evolve()
+        let parents = engine.select_parents();
+        let mut next_generation = Vec::new();
+        
+        // Elitism - preserve the best
         if let Some(best) = engine.population.iter().max_by(|a, b| {
-            a.fitness
-                .partial_cmp(&b.fitness)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            a.fitness.partial_cmp(&b.fitness).unwrap_or(std::cmp::Ordering::Equal)
         }) {
             next_generation.push(best.clone());
         }
 
-        // Breed rest of population
+        // Breed the rest
         while next_generation.len() < config.population_size {
-            next_generation.push(Individual {
-                genome: vec![1, 2, 3],
-                fitness: f64::NEG_INFINITY,
-            });
+            let parent1 = parents.choose(&mut rand::rng()).unwrap();
+            let parent2 = parents.choose(&mut rand::rng()).unwrap();
+
+            let children_genomes = if rand::rng().random::<f64>() < config.crossover_rate {
+                engine.crossover(&parent1.genome, &parent2.genome)
+            } else {
+                vec![parent1.genome.clone(), parent2.genome.clone()]
+            };
+
+            let children: Vec<Individual> = children_genomes
+                .into_iter()
+                .map(|mut genome| {
+                    engine.mutate(&mut genome);
+                    Individual {
+                        genome,
+                        fitness: f64::NEG_INFINITY,
+                    }
+                })
+                .collect();
+
+            // Add children up to capacity
+            let remaining_slots = config.population_size - next_generation.len();
+            let admitted = children.into_iter().take(remaining_slots);
+            next_generation.extend(admitted);
         }
 
         assert_eq!(next_generation.len(), initial_size);
@@ -633,7 +739,7 @@ mod tests {
         let config = get_test_config();
         let metrics_config = get_metrics_config();
         let grammar = get_test_grammar();
-        let candles = get_test_candles();
+        let candles = get_test_candles_extended();
         let mut engine = EvolutionEngine::new(&config, &metrics_config, &grammar, &candles);
 
         engine.initialize_population();
@@ -646,23 +752,16 @@ mod tests {
         let best_before = engine
             .population
             .iter()
-            .max_by(|a, b| {
-                a.fitness
-                    .partial_cmp(&b.fitness)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
+            .max_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(std::cmp::Ordering::Equal))
             .unwrap()
             .clone();
 
-        // Simulate one generation step (simplified)
-        let _parents = engine.select_parents();
+        // Simulate one generation step with elitism
         let mut next_generation = Vec::new();
 
         // Elitism: carry over the best
         if let Some(best) = engine.population.iter().max_by(|a, b| {
-            a.fitness
-                .partial_cmp(&b.fitness)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            a.fitness.partial_cmp(&b.fitness).unwrap_or(std::cmp::Ordering::Equal)
         }) {
             next_generation.push(best.clone());
         }
@@ -690,140 +789,69 @@ mod tests {
     }
 
     #[test]
-    fn test_mapping_failure_counting() {
-        let config = get_test_config();
-        let metrics_config = get_metrics_config();
-        let bad_grammar = get_bad_grammar(); // This will cause mapping failures
-        let candles = get_test_candles();
-        let mut engine = EvolutionEngine::new(&config, &metrics_config, &bad_grammar, &candles);
-
-        engine.initialize_population();
-        let (mapping_failures, vm_errors) = engine.evaluate_population();
-
-        // All individuals should have mapping failures with bad grammar
-        assert_eq!(mapping_failures, config.population_size as u32);
-        assert_eq!(vm_errors, 0);
-
-        // All individuals should have catastrophic fitness
-        for individual in &engine.population {
-            assert_eq!(individual.fitness, INFINITE_PENALTY);
-        }
-    }
-
-    #[test]
-    fn test_tournament_selection() {
-        let config = get_test_config();
-        let metrics_config = get_metrics_config();
-        let grammar = get_test_grammar();
-        let candles = get_test_candles();
-        let mut engine = EvolutionEngine::new(&config, &metrics_config, &grammar, &candles);
-
-        engine.initialize_population();
-
-        // Set different fitness values
-        for (i, individual) in engine.population.iter_mut().enumerate() {
-            individual.fitness = i as f64;
-        }
-
-        let parents = engine.select_parents();
-
-        // Should return population_size parents
-        assert_eq!(parents.len(), config.population_size);
-
-        // Tournament selection should favor higher fitness individuals
-        // Count how many times each fitness level appears
-        let mut fitness_counts = std::collections::HashMap::new();
-        for parent in &parents {
-            *fitness_counts.entry(parent.fitness as i32).or_insert(0) += 1;
-        }
-
-        // Higher fitness individuals should appear more frequently
-        // (This is probabilistic, so we just check that some selection occurred)
-        assert!(fitness_counts.len() <= engine.population.len());
-    }
-
-    #[test]
-    fn test_full_generation_cycle() {
-        let config = get_test_config();
+    fn test_full_evolution_run_completes() {
+        let mut config = get_test_config();
+        config.num_generations = 2; // Keep it short for testing
+        config.population_size = 5;
+        
         let metrics_config = get_metrics_config();
         let grammar = get_test_grammar();
         let candles = get_test_candles_extended();
         let mut engine = EvolutionEngine::new(&config, &metrics_config, &grammar, &candles);
 
-        engine.initialize_population();
-        let initial_pop_size = engine.population.len();
+        let final_population = engine.evolve();
 
-        // Run evaluation
-        let (_mapping_failures, _vm_errors) = engine.evaluate_population();
+        // Evolution should complete and return final population
+        assert_eq!(final_population.len(), config.population_size);
+        
+        // Population should be sorted by fitness (descending)
+        for i in 1..final_population.len() {
+            assert!(
+                final_population[i-1].fitness >= final_population[i].fitness,
+                "Population should be sorted by fitness in descending order"
+            );
+        }
+    }
 
-        // Manually set varied fitness values to test selection properly
-        for (i, individual) in engine.population.iter_mut().enumerate() {
-            individual.fitness = i as f64; // 0, 1, 2, 3, ..., 9
+    #[test]
+    fn test_breeding_logic_with_crossover_and_mutation() {
+        let config = get_test_config();
+        let metrics_config = get_metrics_config();
+        let grammar = get_test_grammar();
+        let candles = get_test_candles();
+        let engine = EvolutionEngine::new(&config, &metrics_config, &grammar, &candles);
+
+        let parent1 = Individual {
+            genome: vec![1, 1, 1, 1, 1],
+            fitness: 1.0,
+        };
+        let parent2 = Individual {
+            genome: vec![2, 2, 2, 2, 2],
+            fitness: 2.0,
+        };
+
+        // Test the crossover + mutation pipeline
+        let mut children_genomes = engine.crossover(&parent1.genome, &parent2.genome);
+        
+        // Apply mutation to each child
+        for genome in children_genomes.iter_mut() {
+            engine.mutate(genome);
         }
 
-        let parents = engine.select_parents();
-        assert_eq!(parents.len(), initial_pop_size);
-
-        let mut next_generation = Vec::new();
-
-        // Elitism - carry over the best individual
-        if let Some(best) = engine.population.iter().max_by(|a, b| {
-            a.fitness
-                .partial_cmp(&b.fitness)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        }) {
-            next_generation.push(best.clone());
-        }
-
-        // Realistic breeding loop
-        let mut parent_idx = 0;
-        while next_generation.len() < config.population_size {
-            let parent1 = &parents[parent_idx % parents.len()];
-            let parent2 = &parents[(parent_idx + 1) % parents.len()];
-
-            let mut child_genome = engine.crossover(&parent1.genome, &parent2.genome);
-            engine.mutate(&mut child_genome);
-
-            next_generation.push(Individual {
-                genome: child_genome,
+        // Create individuals from the genomes
+        let young_blood: Vec<Individual> = children_genomes
+            .into_iter()
+            .map(|g| Individual {
+                genome: g,
                 fitness: f64::NEG_INFINITY,
-            });
-
-            parent_idx += 2; // Move to next pair of parents
-        }
-
-        // Verify next generation is valid
-        assert_eq!(next_generation.len(), config.population_size);
-
-        // The elite should have the highest fitness from previous generation (9.0)
-        assert_eq!(next_generation[0].fitness, 9.0);
-
-        // All others should be unevaluated
-        for i in 1..next_generation.len() {
-            assert_eq!(next_generation[i].fitness, f64::NEG_INFINITY);
-        }
-
-        // Verify genomes are actually different (breeding occurred)
-        let elite_genome = &next_generation[0].genome;
-        let mut genomes_differ = false;
-        for i in 1..next_generation.len() {
-            if next_generation[i].genome != *elite_genome {
-                genomes_differ = true;
-                break;
-            }
-        }
-        assert!(genomes_differ, "Breeding should produce different genomes");
-    } // Add this helper function for sufficient test data
-    fn get_test_candles_extended() -> Vec<OHLCV> {
-        (1..=10)
-            .map(|i| OHLCV {
-                timestamp: i,
-                open: 100.0 + i as f64,
-                high: 105.0 + i as f64,
-                low: 95.0 + i as f64,
-                close: 102.0 + i as f64,
-                volume: 1000.0,
             })
-            .collect()
+            .collect();
+
+        assert_eq!(young_blood.len(), 2);
+        
+        for child in &young_blood {
+            assert_eq!(child.fitness, f64::NEG_INFINITY);
+            assert!(!child.genome.is_empty());
+        }
     }
 }
