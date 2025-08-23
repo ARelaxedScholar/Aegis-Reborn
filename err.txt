@@ -1,1 +1,72 @@
-    Blocking waiting for file lock on build directory
+    Checking aegis-reborn v0.1.0 (/home/arelaxedscholar/Documents/Coding/aegis-reborn)
+error: doc list item without indentation
+  --> src/evolution/mod.rs:53:9
+   |
+53 |     /// for the metrics to be computed for reporting that do not play a role during evolution
+   |         ^
+   |
+   = help: if this is supposed to be its own paragraph, add a blank line
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#doc_lazy_continuation
+   = note: `-D clippy::doc-lazy-continuation` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::doc_lazy_continuation)]`
+help: indent this line
+   |
+53 |     ///   for the metrics to be computed for reporting that do not play a role during evolution
+   |         ++
+
+error: doc list item without indentation
+  --> src/evolution/mod.rs:55:9
+   |
+55 |     /// user-specifed grammar.
+   |         ^
+   |
+   = help: if this is supposed to be its own paragraph, add a blank line
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#doc_lazy_continuation
+help: indent this line
+   |
+55 |     ///   user-specifed grammar.
+   |         ++
+
+error: doc list item without indentation
+  --> src/evolution/mod.rs:57:9
+   |
+57 |     /// for backtesting the generated individuals
+   |         ^
+   |
+   = help: if this is supposed to be its own paragraph, add a blank line
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#doc_lazy_continuation
+help: indent this line
+   |
+57 |     ///   for backtesting the generated individuals
+   |         ++
+
+error: doc list item without indentation
+  --> src/evolution/mod.rs:91:9
+   |
+91 |     /// `population` field at the end of the process
+   |         ^
+   |
+   = help: if this is supposed to be its own paragraph, add a blank line
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#doc_lazy_continuation
+help: indent this line
+   |
+91 |     ///   `population` field at the end of the process
+   |         ++
+
+error: calls to `push` immediately after creation
+   --> src/evolution/mod.rs:362:9
+    |
+362 | /         let mut offsprings: Vec<Genome> = Vec::with_capacity(2);
+363 | |
+364 | |         // Push the two possible offsprings
+365 | |         offsprings.push(
+...   |
+377 | |                 .collect(),
+378 | |         );
+    | |__________^ help: consider using the `vec![]` macro: `let offsprings: Vec<Genome> = vec![..];`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#vec_init_then_push
+    = note: `-D clippy::vec-init-then-push` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::vec_init_then_push)]`
+
+error: could not compile `aegis-reborn` (lib) due to 5 previous errors
