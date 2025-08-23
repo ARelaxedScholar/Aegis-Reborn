@@ -12,23 +12,52 @@ use rand::rng;
 
 const INFINITE_PENALTY: f64 = f64::NEG_INFINITY;
 
+/// Alias within crate for genome representation
 pub type Genome = Vec<u32>;
 
+/// This struct represents a given individual born during the evolution process
+/// the goal of this architecture is to evolve, nurture, and find those of outstanding quality.
 #[derive(Debug, Clone)]
 pub struct Individual {
+    /// This is the DNA, genome of a given individual, represents the sequence of u32 that compose
+    /// it
     pub genome: Genome,
+    /// This is a smoothed Calmar ratio with a linear adjustment for penalty
     pub fitness: f64,
 }
 
+/// This is the beating heart of this architecture, it orchestrate the entire evolution process.
+/// It works in tandem with the `WalkForwardValidator` and the `GrammarBasedMapper` to evolve
+/// (hopefully) robust strategies.
 pub struct EvolutionEngine<'a> {
+    /// This is a reference to the user-defined config for a given evolution run
     config: &'a GaConfig,
+    /// This is a reference to the user-defined config for the metrics which don't play a run in evolution, but we
+    /// want to measure for the gauntlet
     metrics_params: &'a MetricsConfig,
+    /// This is the mapper which takes care of converting a given genome into a program
     mapper: GrammarBasedMapper<'a>,
+    /// This is an owned-vector of the population at any given moment, it is updated after every
+    /// generation
     population: Vec<Individual>,
+    /// This is a reference to a container of `OHLCV` candles
     candles: &'a [OHLCV],
 }
 
 impl<'a> EvolutionEngine<'a> {
+    /// Creates a new EvolutionEngine instance
+    ///
+    /// # Arguments
+    /// * `config` - Reference to a `GaConfig` struct containing all the parameters required for the evolution.
+    /// * `metric_params` - Reference to a `MetricsConfig` struct containing all the parameters
+    /// for the metrics to be computed for reporting that do not play a role during evolution
+    /// * `grammar` - Reference to a `Grammar` struct containing all the rules of the
+    /// user-specifed grammar.
+    /// * `candles` - Reference to a container of `OHLCV` candles which will eventually be used
+    /// for backtesting the generated individuals
+    ///
+    /// # Returns
+    /// * `Self` - An instance of the EvolutionEngine struct
     pub fn new(
         config: &'a GaConfig,
         metrics_params: &'a MetricsConfig,
@@ -47,6 +76,19 @@ impl<'a> EvolutionEngine<'a> {
             candles,
         }
     }
+
+    /// Runs the evolution process
+    ///
+    /// This method mutably borrows the `EvolutionEngine` instance, 
+    /// modifying its `population` field. After evolution, this field contains the last
+    /// generation of solutions.
+    /// 
+    /// # Arguments
+    /// * `&mut self` - The EvolutionEngine that will orchestrate the evolution process 
+    ///
+    /// # Returns
+    /// * `Vec<Individual>` - A vector of the final generation of individuals, a clone of the
+    /// `population` field at the end of the process 
     pub fn evolve(&mut self) -> Vec<Individual> {
         info!(
             "Initializing population of size {}...",
@@ -61,6 +103,8 @@ impl<'a> EvolutionEngine<'a> {
                 self.config.num_generations
             );
 
+            // mapping_failures, vm_errors are counted to penalize degenerate trading
+            // strategies
             let (mapping_failures, vm_errors) = self.evaluate_population();
             let avg_genome_len = self
                 .population
@@ -68,7 +112,6 @@ impl<'a> EvolutionEngine<'a> {
                 .map(|ind| ind.genome.len())
                 .sum::<usize>() as f64
                 / self.population.len() as f64;
-            
 
             let mut next_generation = Vec::new();
             if let Some(best) = self.population.iter().max_by(|a, b| {
@@ -89,6 +132,7 @@ impl<'a> EvolutionEngine<'a> {
                 next_generation.push(best.clone());
             }
 
+            // Vector 
             let parents = self.select_parents();
 
             while next_generation.len() < self.config.population_size {
@@ -139,6 +183,7 @@ impl<'a> EvolutionEngine<'a> {
             })
             .collect();
     }
+
     fn evaluate_population(&mut self) -> (u32, u32) {
         let mut mapping_failures = 0;
         let mut vm_errors = 0;
@@ -281,6 +326,18 @@ impl<'a> EvolutionEngine<'a> {
         selected_parents
     }
 
+    /// This is the crossover operator (variable-length)
+    ///
+    /// It picks a random cut point in `parent1`'s and `parent2`'s genome respectively, 
+    /// and then splices the first part of `parent1`'s genome with the second part of `parent2`'s genome.
+    /// 
+    /// # Arguments
+    /// * `&self` - The EvolutionEngine that will orchestrate the evolution process 
+    /// * `&Genome` - Reference to parent1's genome
+    /// * `&Genome` - Reference to parent2's genome
+    ///
+    /// # Returns
+    /// * `Genome` - The offspring representing the splicing of parent1 and parent2
     fn crossover(&self, parent1: &Genome, parent2: &Genome) -> Genome {
         if parent1.is_empty() || parent2.is_empty() {
             return if !parent1.is_empty() {
