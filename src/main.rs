@@ -52,38 +52,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     log::info!("Booting Aegis Reborn...");
 
     // 1. Load and Validate Configuration
-    let config = match Config::load(Path::new("config.toml")) {
-        Ok(c) => c,
-        Err(e) => {
-            log::error!("Failed to load configuration: {}", e);
-            process::exit(1);
-        }
-    };
+    let config = Config::load(Path::new("config.toml")).unwrap_or_else(|e| {
+        log::error!("Failed to load configuration: {}", e);
+        process::exit(1);
+    });
 
-    if let Err(e) = config.validate() {
+    config.validate().unwrap_or_else(|e| {
         log::error!("Invalid configuration: {}", e);
         process::exit(1);
-    }
+    });
     log::info!("Configuration loaded and validated.");
 
     // 2. Load Grammar
-    let grammar = match Grammar::new(Path::new(&config.grammar_file)) {
-        Ok(g) => g,
-        Err(e) => {
-            log::error!("Failed to load grammar: {}", e);
-            process::exit(1);
-        }
-    };
+    let grammar = Grammar::new(Path::new(&config.grammar_file)).unwrap_or_else(|e| {
+        log::error!("Failed to load grammar: {}", e);
+        process::exit(1);
+    });
     log::info!("Grammar '{}' loaded successfully.", config.grammar_file);
 
     // 3. Prepare Data
-    let (training_validation_data, hold_out_data) = match prepare_data(&config.data) {
-        Ok(data) => data,
-        Err(e) => {
+    let (training_validation_data, hold_out_data) =
+        prepare_data(&config.data).unwrap_or_else(|e| {
             log::error!("Data preparation failed: {}", e);
             process::exit(1);
-        }
-    };
+        });
 
     // 4. Run the Evolution ONLY on the Training/Validation Set
     log::info!("--- Starting Evolution ---");
@@ -95,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     let champions = engine.evolve();
 
-    // 5. Final Gauntlet (To be implemented in Step 5)
+    // 5. Final Gauntlet 
     log::info!("--- Evolution Complete: Preparing for Final Gauntlet ---");
     log::info!("Top 5 Champions (Council):");
     let mapper = GrammarBasedMapper::new(
