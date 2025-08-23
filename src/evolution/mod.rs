@@ -49,12 +49,9 @@ impl<'a> EvolutionEngine<'a> {
     ///
     /// # Arguments
     /// * `config` - Reference to a `GaConfig` struct containing all the parameters required for the evolution.
-    /// * `metric_params` - Reference to a `MetricsConfig` struct containing all the parameters
-    /// for the metrics to be computed for reporting that do not play a role during evolution
-    /// * `grammar` - Reference to a `Grammar` struct containing all the rules of the
-    /// user-specifed grammar.
-    /// * `candles` - Reference to a container of `OHLCV` candles which will eventually be used
-    /// for backtesting the generated individuals
+    /// * `metric_params` - Reference to a `MetricsConfig` struct containing all the parameters for the metrics to be computed for reporting that do not play a role during evolution
+    /// * `grammar` - Reference to a `Grammar` struct containing all the rules of the user-specifed grammar.
+    /// * `candles` - Reference to a container of `OHLCV` candles which will eventually be used for backtesting the generated individuals
     ///
     /// # Returns
     /// * `Self` - An instance of the EvolutionEngine struct
@@ -87,8 +84,7 @@ impl<'a> EvolutionEngine<'a> {
     /// * `&mut self` - The EvolutionEngine that will orchestrate the evolution process
     ///
     /// # Returns
-    /// * `Vec<Individual>` - A vector of the final generation of individuals, a clone of the
-    /// `population` field at the end of the process
+    /// * `Vec<Individual>` - A vector of the final generation of individuals, a clone of the `population` field at the end of the process
     pub fn evolve(&mut self) -> Vec<Individual> {
         info!(
             "Initializing population of size {}...",
@@ -358,25 +354,18 @@ impl<'a> EvolutionEngine<'a> {
         let cut1 = rng.random_range(0..=parent1.len());
         let cut2 = rng.random_range(0..=parent2.len());
 
-        let mut offsprings: Vec<Genome> = Vec::with_capacity(2);
-
-        // Push the two possible offsprings
-        offsprings.push(
+        vec![
             parent1[..cut1]
                 .iter()
                 .chain(&parent2[cut2..])
                 .cloned()
                 .collect(),
-        );
-        offsprings.push(
             parent2[..cut2]
                 .iter()
                 .chain(&parent1[cut1..])
                 .cloned()
                 .collect(),
-        );
-        // then return
-        offsprings
+        ]
     }
 
     fn mutate(&self, genome: &mut Genome) {
