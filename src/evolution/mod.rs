@@ -6,7 +6,7 @@ use crate::data::OHLCV;
 use crate::evaluation::walk_forward::WalkForwardValidator;
 use crate::evolution::grammar::Grammar;
 use crate::evolution::mapper::GrammarBasedMapper;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use rand::prelude::*;
 use rand::rng;
 
@@ -79,16 +79,16 @@ impl<'a> EvolutionEngine<'a> {
 
     /// Runs the evolution process
     ///
-    /// This method mutably borrows the `EvolutionEngine` instance, 
+    /// This method mutably borrows the `EvolutionEngine` instance,
     /// modifying its `population` field. After evolution, this field contains the last
     /// generation of solutions.
-    /// 
+    ///
     /// # Arguments
-    /// * `&mut self` - The EvolutionEngine that will orchestrate the evolution process 
+    /// * `&mut self` - The EvolutionEngine that will orchestrate the evolution process
     ///
     /// # Returns
     /// * `Vec<Individual>` - A vector of the final generation of individuals, a clone of the
-    /// `population` field at the end of the process 
+    /// `population` field at the end of the process
     pub fn evolve(&mut self) -> Vec<Individual> {
         info!(
             "Initializing population of size {}...",
@@ -132,27 +132,34 @@ impl<'a> EvolutionEngine<'a> {
                 next_generation.push(best.clone());
             }
 
-            // Vector 
+            // Vector
             let parents = self.select_parents();
 
             while next_generation.len() < self.config.population_size {
                 let parent1 = parents.choose(&mut rng()).unwrap();
                 let parent2 = parents.choose(&mut rng()).unwrap();
 
-                let mut child_genome = if rng().random::<f64>() < self.config.crossover_rate {
+                let mut children_genome = if rng().random::<f64>() < self.config.crossover_rate {
                     self.crossover(&parent1.genome, &parent2.genome)
                 } else {
-                    parent1.genome.clone()
+                    vec![parent1.genome.clone(), parent2.genome.clone()]
                 };
 
-                if rng().random::<f64>() < self.config.mutation_rate {
-                    self.mutate(&mut child_genome);
-                }
+                // Mutation (update to Per-Gene Probabilistic mutation
+                children_genome.iter_mut().for_each(|g| self.mutate(g));
 
-                next_generation.push(Individual {
-                    genome: child_genome,
-                    fitness: f64::NEG_INFINITY,
-                });
+                let young_blood: Vec<Individual> = children_genome
+                    .into_iter()
+                    .map(|g| Individual {
+                        genome: g,
+                        fitness: f64::NEG_INFINITY,
+                    })
+                    .collect();
+
+                // Add the children to the next generation, up to capacity.
+                let remaining_slots = self.config.population_size - next_generation.len();
+                let admitted = young_blood.into_iter().take(remaining_slots);
+                next_generation.extend(admitted);
             }
             self.population = next_generation;
         }
@@ -328,32 +335,48 @@ impl<'a> EvolutionEngine<'a> {
 
     /// This is the crossover operator (variable-length)
     ///
-    /// It picks a random cut point in `parent1`'s and `parent2`'s genome respectively, 
+    /// It picks a random cut point in `parent1`'s and `parent2`'s genome respectively,
     /// and then splices the first part of `parent1`'s genome with the second part of `parent2`'s genome.
-    /// 
+    /// It then does the reverse for symmetry and full gene exploitation.
+    ///
     /// # Arguments
-    /// * `&self` - The EvolutionEngine that will orchestrate the evolution process 
+    /// * `&self` - The EvolutionEngine that will orchestrate the evolution process
     /// * `&Genome` - Reference to parent1's genome
     /// * `&Genome` - Reference to parent2's genome
     ///
     /// # Returns
-    /// * `Genome` - The offspring representing the splicing of parent1 and parent2
-    fn crossover(&self, parent1: &Genome, parent2: &Genome) -> Genome {
+    /// * `Vec<Genome>` - The offsprings representing the splicing of parent1 and parent2
+    fn crossover(&self, parent1: &Genome, parent2: &Genome) -> Vec<Genome> {
         if parent1.is_empty() || parent2.is_empty() {
-            return if !parent1.is_empty() {
-                parent1.clone()
-            } else {
-                parent2.clone()
-            };
+            warn!("crossover operator received a parent with empty genome");
+            // NoOp
+            return vec![parent1.clone(), parent2.clone()];
         }
         let mut rng = rng();
-        let cut1 = rng.random_range(0..parent1.len());
-        let cut2 = rng.random_range(0..parent2.len());
-        parent1[..cut1]
-            .iter()
-            .chain(&parent2[cut2..])
-            .cloned()
-            .collect()
+
+        // allows taking none, all, and everything in between
+        let cut1 = rng.random_range(0..=parent1.len());
+        let cut2 = rng.random_range(0..=parent2.len());
+
+        let mut offsprings: Vec<Genome> = Vec::with_capacity(2);
+
+        // Push the two possible offsprings
+        offsprings.push(
+            parent1[..cut1]
+                .iter()
+                .chain(&parent2[cut2..])
+                .cloned()
+                .collect(),
+        );
+        offsprings.push(
+            parent2[..cut2]
+                .iter()
+                .chain(&parent1[cut1..])
+                .cloned()
+                .collect(),
+        );
+        // then return
+        offsprings
     }
 
     fn mutate(&self, genome: &mut Genome) {
@@ -361,8 +384,12 @@ impl<'a> EvolutionEngine<'a> {
             return;
         }
         let mut rng = rng();
-        let index_to_mutate = rng.random_range(0..genome.len());
-        genome[index_to_mutate] = rng.random();
+        genome.iter_mut().for_each(|gene| {
+            if rng.random::<f64>() < self.config.mutation_rate {
+                // use random resetting, might be something to tweak in the future
+                *gene = rng.random::<u32>();
+            }
+        });
     }
 }
 
