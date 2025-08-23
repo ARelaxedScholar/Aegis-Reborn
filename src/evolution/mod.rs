@@ -68,7 +68,9 @@ impl<'a> EvolutionEngine<'a> {
                 .map(|ind| ind.genome.len())
                 .sum::<usize>() as f64
                 / self.population.len() as f64;
+            
 
+            let mut next_generation = Vec::new();
             if let Some(best) = self.population.iter().max_by(|a, b| {
                 a.fitness
                     .partial_cmp(&b.fitness)
@@ -82,18 +84,12 @@ impl<'a> EvolutionEngine<'a> {
                     mapping_failures,
                     vm_errors
                 );
+
+                // Preserve it for next generation (explotation)
+                next_generation.push(best.clone());
             }
 
             let parents = self.select_parents();
-            let mut next_generation = Vec::new();
-
-            if let Some(best) = self.population.iter().max_by(|a, b| {
-                a.fitness
-                    .partial_cmp(&b.fitness)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            }) {
-                next_generation.push(best.clone());
-            }
 
             while next_generation.len() < self.config.population_size {
                 let parent1 = parents.choose(&mut rng()).unwrap();
