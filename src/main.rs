@@ -88,14 +88,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let champions = engine.evolve();
 
     // 5. Final Gauntlet 
+    let size_of_council = config.ga.size_of_council;
     log::info!("--- Evolution Complete: Preparing for Final Gauntlet ---");
-    log::info!("Top 5 Champions (Council):");
+    log::info!("Top {size_of_council} Champions (Council):");
     let mapper = GrammarBasedMapper::new(
         &grammar,
         config.ga.max_program_tokens,
         config.ga.max_recursion_depth,
     );
-    for (i, champion) in champions.iter().take(5).enumerate() {
+    for (i, champion) in champions.iter().take(size_of_council).enumerate() {
         println!("\n[Rank {}] Fitness: {:.4}", i + 1, champion.fitness);
         match mapper.map(&champion.genome) {
             Ok(strategy) => println!("{:#?}", strategy),
@@ -108,7 +109,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let final_reports = run_gauntlet(
-        &champions.iter().take(10).cloned().collect::<Vec<_>>(),
+        &champions.iter().take(size_of_council).cloned().collect::<Vec<_>>(),
         &training_validation_data,
         &hold_out_data,
         &grammar,
