@@ -737,7 +737,11 @@ mod tests {
         let mut engine = EvolutionEngine::new(&config, &metrics_config, &bad_grammar, &candles);
 
         let genome: Genome = vec![0];
-        let FitnessEvaluationReport {fitness, mapping_failure_occurred, vm_error_occurred} = engine.calculate_fitness(&genome);
+        let FitnessEvaluationReport {
+            fitness,
+            mapping_failure_occurred,
+            vm_error_occurred,
+        } = engine.calculate_fitness(&genome);
 
         assert_eq!(fitness, INFINITE_PENALTY);
         assert!(mapping_failure_occurred);
@@ -779,7 +783,10 @@ mod tests {
         let mut engine = EvolutionEngine::new(&config, &metrics_config, &bad_grammar, &candles);
 
         engine.initialize_population();
-        let PopulationEvaluationReport {mapping_failures, vm_errors: _vm_errors} = engine.evaluate_population();
+        let PopulationEvaluationReport {
+            mapping_failures,
+            vm_errors: _vm_errors,
+        } = engine.evaluate_population();
 
         // All individuals should have mapping failures with bad grammar
         assert_eq!(mapping_failures, config.population_size);
