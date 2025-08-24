@@ -381,7 +381,7 @@ impl<'a> EvolutionEngine<'a> {
         );
 
         FitnessEvaluationReport {
-            fitness: INFINITE_PENALTY,
+            fitness: fitness,
             mapping_failure_occurred: false,
             vm_error_occurred: false,
         }
