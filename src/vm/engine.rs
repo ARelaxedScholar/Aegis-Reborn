@@ -46,6 +46,9 @@ impl VirtualMachine {
             let op = &program[pc];
             pc += 1;
             match op {
+                Op::EntryMarker | Op::ExitMarker => {
+                    // Does nothing, only used for delimitation
+                }
                 Op::PushConstant(val) => self.push(*val)?,
                 Op::PushPrice(price_type) => {
                     let val = match price_type {

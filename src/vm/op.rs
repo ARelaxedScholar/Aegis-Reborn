@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 /// The Op codes our VM actually supports
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Op {
+    /// The Program Delimiters
+    EntryMarker,
+    ExitMarker,
+
     /// The Op codes related to numbers
     PushConstant(f64),
     PushPrice(PriceType),
