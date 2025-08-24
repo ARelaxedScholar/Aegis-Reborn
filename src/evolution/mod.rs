@@ -141,7 +141,7 @@ impl<'a> EvolutionEngine<'a> {
                     vec![parent1.genome.clone(), parent2.genome.clone()]
                 };
 
-                // Mutation (update to Per-Gene Probabilistic mutation
+                // Mutation (update to Per-Gene Probabilistic mutation)
                 children_genome.iter_mut().for_each(|g| self.mutate(g));
 
                 let young_blood: Vec<Individual> = children_genome
