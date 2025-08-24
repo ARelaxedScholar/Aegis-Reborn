@@ -9,13 +9,13 @@ hold_out_split = 0.3 # 30% of data is reserved for the final, unbiased test
 
 [ga]
 # Genetic Algorithm Parameters
-population_size = 500
-num_generations = 100
+population_size = 50
+num_generations = 1
 mutation_rate = 0.1
 crossover_rate = 0.9
 tournament_size = 3
 initial_genome_length = 100
-max_program_tokens = 500
+max_program_tokens = 50
 max_recursion_depth = 256
 parsimony_penalty = 0.001
 alpha = 0.01 # Smoothing factor for Calmar ratio

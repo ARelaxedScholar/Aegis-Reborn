@@ -20,12 +20,15 @@ pub enum MappingError {
     TokenLimitExceeded { limit: usize, genome: Genome },
 }
 
+/// Struct that keeps information about the information
+/// relating to the mapping of a given genome
 struct MappingContext<'a> {
     genome: &'a Genome,
     codon_idx: usize,
     token_count: usize,
     recursion_depth: u32,
 }
+
 
 impl<'a> MappingContext<'a> {
     fn new(genome: &'a Genome) -> Self {
@@ -54,6 +57,15 @@ pub struct GrammarBasedMapper<'a> {
 }
 
 impl<'a> GrammarBasedMapper<'a> {
+    /// Creates a new `GrammarBasedMapper`
+    ///
+    /// # Arguments
+    /// * `grammar` - Reference to the `Grammar` that will be used for the mapping
+    /// * `max_tokens` - Maximum number of tokens allowed for a given genome 
+    /// * `max_recursion_depth` - Maximum recursion depth allowed during the mapping process
+    ///
+    /// # Returns
+    /// * `Self` - An instance of the EvolutionEngine struct
     pub fn new(grammar: &'a Grammar, max_tokens: usize, max_recursion_depth: u32) -> Self {
         Self {
             grammar,
@@ -62,6 +74,15 @@ impl<'a> GrammarBasedMapper<'a> {
         }
     }
 
+    /// The main orchestrator for the `GrammarBasedMapper`
+    /// Delegates actual expansion (token mapping) to `expand`, but it handles the rest
+    ///
+    /// # Arguments
+    /// * `&self` - Reference to `GrammarBasedMapper`
+    /// * `genome` - The genome that must be turned into an actual program 
+    ///
+    /// # Returns
+    /// * `Result<Strategy, MappingError>` 
     pub fn map(&self, genome: &Genome) -> Result<Strategy, MappingError> {
         let mut context = MappingContext::new(genome);
         let mut programs = HashMap::new();
@@ -75,8 +96,7 @@ impl<'a> GrammarBasedMapper<'a> {
 
         for op in bytecode {
             match op {
-                Op::Add => {
-                    // Placeholder for ENTRY
+                Op::EntryMarker => {
                     if let Some(name) = current_program_name.take() {
                         if !current_program_code.is_empty() {
                             programs.insert(name, current_program_code);
@@ -85,8 +105,7 @@ impl<'a> GrammarBasedMapper<'a> {
                     current_program_name = Some("entry".to_string());
                     current_program_code = Vec::new();
                 }
-                Op::Subtract => {
-                    // Placeholder for EXIT
+                Op::ExitMarker => {
                     if let Some(name) = current_program_name.take() {
                         if !current_program_code.is_empty() {
                             programs.insert(name, current_program_code);
@@ -150,8 +169,8 @@ impl<'a> GrammarBasedMapper<'a> {
         } else {
             // Translate terminal into an Op or a placeholder
             match symbol {
-                "ENTRY" => bytecode.push(Op::Add), // Use Add as a unique placeholder
-                "EXIT" => bytecode.push(Op::Subtract), // Use Subtract as a unique placeholder
+                "ENTRY" => bytecode.push(Op::EntryMarker), 
+                "EXIT" => bytecode.push(Op::ExitMarker), 
                 _ => {
                     if let Some(op) = self.terminal_to_op(symbol) {
                         bytecode.push(op);
