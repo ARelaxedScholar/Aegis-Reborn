@@ -1,0 +1,334 @@
+
+[Rank 1] Fitness: 4.6255
+Strategy {
+    programs: {
+        "exit": [
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            PushPrice(
+                High,
+            ),
+            LessThanOrEqual,
+        ],
+        "entry": [
+            PushPrice(
+                Low,
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            GreaterThan,
+        ],
+    },
+}
+
+[Rank 2] Fitness: 4.6255
+Strategy {
+    programs: {
+        "exit": [
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            PushPrice(
+                High,
+            ),
+            LessThanOrEqual,
+        ],
+        "entry": [
+            PushPrice(
+                Low,
+            ),
+            PushIndicator(
+                Sma(
+                    100,
+                ),
+            ),
+            GreaterThan,
+        ],
+    },
+}
+
+[Rank 3] Fitness: 4.6255
+Strategy {
+    programs: {
+        "entry": [
+            PushPrice(
+                Low,
+            ),
+            PushIndicator(
+                Sma(
+                    100,
+                ),
+            ),
+            GreaterThan,
+        ],
+        "exit": [
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            PushPrice(
+                High,
+            ),
+            LessThanOrEqual,
+        ],
+    },
+}
+
+[Rank 4] Fitness: 4.6255
+Strategy {
+    programs: {
+        "entry": [
+            PushPrice(
+                Low,
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            GreaterThan,
+        ],
+        "exit": [
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            PushPrice(
+                High,
+            ),
+            LessThanOrEqual,
+        ],
+    },
+}
+
+[Rank 5] Fitness: 4.6255
+Strategy {
+    programs: {
+        "entry": [
+            PushPrice(
+                Low,
+            ),
+            PushIndicator(
+                Sma(
+                    100,
+                ),
+            ),
+            GreaterThan,
+        ],
+        "exit": [
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            PushPrice(
+                High,
+            ),
+            LessThanOrEqual,
+        ],
+    },
+}
+
+[Rank 6] Fitness: 4.6255
+Strategy {
+    programs: {
+        "exit": [
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            PushPrice(
+                High,
+            ),
+            LessThanOrEqual,
+        ],
+        "entry": [
+            PushPrice(
+                Low,
+            ),
+            PushIndicator(
+                Sma(
+                    100,
+                ),
+            ),
+            GreaterThan,
+        ],
+    },
+}
+
+[Rank 7] Fitness: 4.6255
+Strategy {
+    programs: {
+        "entry": [
+            PushPrice(
+                Low,
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            GreaterThan,
+        ],
+        "exit": [
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            PushPrice(
+                High,
+            ),
+            LessThanOrEqual,
+        ],
+    },
+}
+
+[Rank 8] Fitness: 4.6255
+Strategy {
+    programs: {
+        "exit": [
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            PushPrice(
+                High,
+            ),
+            LessThanOrEqual,
+        ],
+        "entry": [
+            PushPrice(
+                Low,
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            GreaterThan,
+        ],
+    },
+}
+
+[Rank 9] Fitness: 4.6255
+Strategy {
+    programs: {
+        "entry": [
+            PushPrice(
+                Low,
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            GreaterThan,
+        ],
+        "exit": [
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            PushPrice(
+                High,
+            ),
+            LessThanOrEqual,
+        ],
+    },
+}
+
+[Rank 10] Fitness: 4.6255
+Strategy {
+    programs: {
+        "exit": [
+            PushDynamic(
+                ClosePercent(
+                    1,
+                ),
+            ),
+            PushPrice(
+                High,
+            ),
+            LessThanOrEqual,
+        ],
+        "entry": [
+            PushPrice(
+                Low,
+            ),
+            PushIndicator(
+                Sma(
+                    20,
+                ),
+            ),
+            GreaterThan,
+        ],
+    },
+}
+
+
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║                           🏛️  THE GAUNTLET RESULTS  🏛️                            ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+📊 HOLD-OUT PERFORMANCE SUMMARY:
+Rank  | Orig.Fitness | Hold-Out Equity | Sharpe Ratio | Max DD (%)   | Ann.Return (%)
+─────────────────────────────────────────────────────────────────────────────────────
+1     | 4.6255       | $17241.33       | 0.615        | 27.05       | 14.23        
+4     | 4.6255       | $17241.33       | 0.615        | 27.05       | 14.23        
+7     | 4.6255       | $17241.33       | 0.615        | 27.05       | 14.23        
+8     | 4.6255       | $17241.33       | 0.615        | 27.05       | 14.23        
+9     | 4.6255       | $17241.33       | 0.615        | 27.05       | 14.23        
+10    | 4.6255       | $17241.33       | 0.615        | 27.05       | 14.23        
+2     | 4.6255       | $14731.95       | 0.441        | 26.12       | 9.92         
+3     | 4.6255       | $14731.95       | 0.441        | 26.12       | 9.92         
+5     | 4.6255       | $14731.95       | 0.441        | 26.12       | 9.92         
+6     | 4.6255       | $14731.95       | 0.441        | 26.12       | 9.92         
+
+🔬 BOOTSTRAP ANALYSIS — Market Path (2000 runs):
+Rank  | Bootstrap Avg   | Median          | Worst Case      | Profitable%  | 95% CI Range        
+────────────────────────────────────────────────────────────────────────────────────────────────────
+1     | $602108.20      | $179317.05      | $4227.63        | 99.2        | $3636341.79         
+4     | $693100.48      | $180938.16      | $1606.65        | 99.2        | $4687852.87         
+7     | $631155.25      | $187598.45      | $3671.20        | 99.2        | $3913935.48         
+8     | $661374.49      | $173281.40      | $3766.21        | 99.4        | $4227646.90         
+9     | $642932.33      | $184899.94      | $4627.31        | 98.9        | $4098980.06         
+10    | $687549.96      | $190489.04      | $3031.87        | 99.1        | $3988679.41         
+2     | $570992.19      | $115880.56      | $1648.89        | 96.5        | $4409317.70         
+3     | $668267.36      | $129442.08      | $1155.79        | 96.8        | $4585151.89         
+5     | $624364.58      | $117836.91      | $916.04         | 97.2        | $4803404.36         
+6     | $733575.43      | $127189.81      | $1601.46        | 96.7        | $3838500.71         
+
+🔁 BOOTSTRAP ANALYSIS — Strategy PnL (2000 runs):
+Rank  | Bootstrap Avg   | Median          | Worst Case      | Profitable%  | 95% CI Range        
+────────────────────────────────────────────────────────────────────────────────────────────────────
+1     | $19606.91       | $16579.65       | $3700.74        | 85.4        | $43770.40           
+4     | $19363.63       | $16787.01       | $3836.56        | 86.7        | $39746.56           
+7     | $19717.29       | $16755.16       | $2407.54        | 86.6        | $42712.18           
+8     | $19327.11       | $16633.88       | $2813.88        | 84.5        | $41518.63           
+9     | $19389.66       | $16975.76       | $4145.86        | 85.7        | $42883.68           
+10    | $19302.83       | $16619.84       | $3251.81        | 84.7        | $43254.50           
+2     | $15932.19       | $14462.50       | $3158.56        | 81.2        | $27328.96           
+3     | $16042.73       | $14331.25       | $3939.57        | 80.6        | $28443.87           
+5     | $15618.98       | $14460.88       | $3729.85        | 80.7        | $25683.67           
+6     | $15949.91       | $14444.78       | $3481.20        | 81.8        | $27133.77           
+
+🏆 CHAMPION SUMMARY:
+   • Best Hold-Out Performer: Rank 1 ($17241.33 final equity)
+   • Market Bootstrap Success Rate: 99.2% profitable
+   • PnL Bootstrap Success Rate: 85.4% profitable
+   • Risk (Market bootstrap): Worst $4227.63, Best $45733136.72
+   • Risk (PnL bootstrap): Worst $3700.74, Best $96167.36
