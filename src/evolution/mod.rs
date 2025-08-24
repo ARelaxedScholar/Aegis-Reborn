@@ -44,6 +44,24 @@ pub struct EvolutionEngine<'a> {
     candles: &'a [OHLCV],
 }
 
+/// Struct associated with the `evaluate_population` function,
+/// which contains a count of the errors which occured during VM execution `vm_errors`
+/// and a count of the error which occured during mapping `mapping_failures`
+#[derive(Debug, Copy, Clone)]
+struct PopulationEvaluationReport {
+    mapping_failures: usize,
+    vm_errors: usize,
+}
+
+/// Struct associated with the `calculate_fitness` function,
+/// which contains the aggregated `fitness` score, the
+#[derive(Debug, Copy, Clone)]
+struct FitnessEvaluationReport {
+    fitness: f64,
+    mapping_failure_occurred: bool,
+    vm_error_occurred: bool,
+}
+
 impl<'a> EvolutionEngine<'a> {
     /// Creates a new EvolutionEngine instance
     ///
@@ -101,7 +119,7 @@ impl<'a> EvolutionEngine<'a> {
 
             // mapping_failures, vm_errors are counted to penalize degenerate trading
             // strategies
-            let (mapping_failures, vm_errors) = self.evaluate_population();
+            let PopulationEvaluationReport{mapping_failures, vm_errors} = self.evaluate_population();
             let avg_genome_len = self
                 .population
                 .iter()
@@ -172,6 +190,17 @@ impl<'a> EvolutionEngine<'a> {
         self.population.clone()
     }
 
+    /// This function initializes the population vector.
+    ///
+    /// This method mutably borrows the `EvolutionEngine` instance,
+    /// modifying its `population` field. This is usually called once, at the beginning of the
+    /// process to setup the initial `population` vector.
+    ///
+    /// # Arguments
+    /// * `&mut self` - The EvolutionEngine for which you need to initialize the population
+    ///
+    /// # Returns
+    /// Nothing. `EvolutionEngine` is modified in-place.
     fn initialize_population(&mut self) {
         let mut rng = rng();
         self.population = (0..self.config.population_size)
@@ -187,30 +216,58 @@ impl<'a> EvolutionEngine<'a> {
             .collect();
     }
 
-    fn evaluate_population(&mut self) -> (u32, u32) {
+    /// Evaluates the population
+    ///
+    /// This method mutably borrows the `EvolutionEngine` instance,
+    /// modifying its `population` field. Each generation, it is called to update the `fitness`
+    /// scores of the current generation. It itself delegates to the `calculate_fitness` function.
+    ///
+    /// # Arguments
+    /// * `&mut self` - The EvolutionEngine for which you need to initialize the population
+    ///
+    /// # Returns
+    /// `PopulationEvaluationReport`
+    fn evaluate_population(&mut self) -> PopulationEvaluationReport {
         let mut mapping_failures = 0;
         let mut vm_errors = 0;
 
         for i in 0..self.population.len() {
             if self.population[i].fitness == f64::NEG_INFINITY {
                 let genome = self.population[i].genome.clone();
-                let (fitness, had_map_err, had_vm_err) = self.calculate_fitness(&genome);
+
+                // Delegates the actual fitness evaluation
+                let FitnessEvaluationReport{fitness, mapping_failure_occurred, vm_error_occurred} = self.calculate_fitness(&genome);
                 self.population[i].fitness = fitness;
-                if had_map_err {
+                if mapping_failure_occurred {
                     mapping_failures += 1;
                 }
-                if had_vm_err {
+                if vm_error_occurred {
                     vm_errors += 1;
                 }
             }
         }
 
-        (mapping_failures, vm_errors)
+        PopulationEvaluationReport {
+            mapping_failures,
+            vm_errors,
+        }
     }
 
-    /// A function which delegates the actual evaluation of a a genome to the WalkForwardValidator
+    /// A function which delegates the actual evaluation of a genome to the `WalkForwardValidator`
     /// and then aggregates the result to send them upstream.
-    fn calculate_fitness(&mut self, genome: &Genome) -> (f64, bool, bool) {
+    /// Evaluates the population
+    ///
+    /// This method mutably borrows the `EvolutionEngine` instance,
+    /// modifying its `population` field. Each generation, it is the workhorse which actually
+    /// computes the scores of the current generation.
+    ///
+    /// # Arguments
+    /// * `&mut self` - The `EvolutionEngine` for which you need to initialize the population
+    /// * `genome` - Reference to the `Genome` of the `Individual` to evaluate
+    ///
+    /// # Returns
+    /// `FitnessEvaluationReport`
+    fn calculate_fitness(&mut self, genome: &Genome) -> FitnessEvaluationReport {
         // Step 1: Map genome to strategy
         let strategy = match self.mapper.map(genome) {
             Ok(s) => s,
@@ -219,14 +276,22 @@ impl<'a> EvolutionEngine<'a> {
                     "Mapping failed for genome: {:?}. Assigning catastrophic fitness.",
                     e
                 );
-                return (INFINITE_PENALTY, true, false); // (fitness, map_err, vm_err)
+                return FitnessEvaluationReport {
+                    fitness: INFINITE_PENALTY,
+                    mapping_failure_occurred: true,
+                    vm_error_occurred: false,
+                };
             }
         };
 
         // Step 2: Validate strategy has required components
         if !strategy.programs.contains_key("entry") {
             debug!("Strategy missing entry program. Assigning catastrophic fitness.");
-            return (INFINITE_PENALTY, true, false);
+            return FitnessEvaluationReport {
+                fitness: INFINITE_PENALTY,
+                mapping_failure_occurred: true,
+                vm_error_occurred: false,
+            };
         }
 
         // Step 3: Create and configure walk-forward validator
@@ -238,7 +303,11 @@ impl<'a> EvolutionEngine<'a> {
             Ok(v) => v,
             Err(e) => {
                 error!("Failed to create walk-forward validator: {}", e);
-                return (INFINITE_PENALTY, false, true); // Treat as VM error
+                return FitnessEvaluationReport {
+                    fitness: INFINITE_PENALTY,
+                    mapping_failure_occurred: false,
+                    vm_error_occurred: true,
+                }; // Treat as VM error
             }
         };
 
@@ -247,7 +316,11 @@ impl<'a> EvolutionEngine<'a> {
             Ok(r) => r,
             Err(e) => {
                 debug!("Walk-forward validation failed: {}", e);
-                return (INFINITE_PENALTY, false, true); // VM/validation error
+                return FitnessEvaluationReport {
+                    fitness: INFINITE_PENALTY,
+                    mapping_failure_occurred: false,
+                    vm_error_occurred: true,
+                }; // VM/validation error
             }
         };
 
@@ -257,7 +330,11 @@ impl<'a> EvolutionEngine<'a> {
                 "Strategy execution errors - Entry: {}, Exit: {}",
                 result.entry_error_count, result.exit_error_count
             );
-            return (INFINITE_PENALTY, false, true);
+            return FitnessEvaluationReport {
+                fitness: INFINITE_PENALTY,
+                mapping_failure_occurred: false,
+                vm_error_occurred: true,
+            };
         }
 
         // Step 6: Calculate Calmar ratio with smoothing
@@ -295,7 +372,11 @@ impl<'a> EvolutionEngine<'a> {
             fitness
         );
 
-        (fitness, false, false)
+        FitnessEvaluationReport {
+            fitness: INFINITE_PENALTY,
+            mapping_failure_occurred: false,
+            vm_error_occurred: false,
+        }
     }
 
     fn select_parents(&self) -> Vec<Individual> {
@@ -511,8 +592,12 @@ mod tests {
         let parent2: Genome = vec![2, 2, 2, 2, 2];
 
         let children = engine.crossover(&parent1, &parent2);
-        
-        assert_eq!(children.len(), 2, "Crossover should return exactly 2 children");
+
+        assert_eq!(
+            children.len(),
+            2,
+            "Crossover should return exactly 2 children"
+        );
 
         let child1 = &children[0];
         let child2 = &children[1];
@@ -520,13 +605,15 @@ mod tests {
         // Children should be composed of parent material
         assert!(child1.iter().all(|&g| g == 1 || g == 2));
         assert!(child2.iter().all(|&g| g == 1 || g == 2));
-        
+
         // At least one child should be different from its corresponding parent
         // (unless by chance the crossover point results in identical genomes)
-        let children_differ_from_parents = 
-            child1 != &parent1 || child1 != &parent2 || 
-            child2 != &parent1 || child2 != &parent2;
-        assert!(children_differ_from_parents, "Children should generally differ from parents");
+        let children_differ_from_parents =
+            child1 != &parent1 || child1 != &parent2 || child2 != &parent1 || child2 != &parent2;
+        assert!(
+            children_differ_from_parents,
+            "Children should generally differ from parents"
+        );
     }
 
     #[test]
@@ -566,12 +653,12 @@ mod tests {
         let engine = EvolutionEngine::new(&config, &metrics_config, &grammar, &candles);
 
         let parent1: Genome = vec![1; 10]; // Long parent
-        let parent2: Genome = vec![2; 3];  // Short parent
+        let parent2: Genome = vec![2; 3]; // Short parent
 
         let children = engine.crossover(&parent1, &parent2);
-        
+
         assert_eq!(children.len(), 2);
-        
+
         // Children should contain genes from both parents
         for child in &children {
             if !child.is_empty() {
@@ -584,7 +671,7 @@ mod tests {
     fn test_mutation_with_moderate_rate() {
         let mut config = get_test_config();
         config.mutation_rate = 1.0; // 100% mutation rate for testing
-        
+
         let metrics_config = get_metrics_config();
         let grammar = get_test_grammar();
         let candles = get_test_candles();
@@ -694,10 +781,12 @@ mod tests {
         // Simulate the breeding logic from evolve()
         let parents = engine.select_parents();
         let mut next_generation = Vec::new();
-        
+
         // Elitism - preserve the best
         if let Some(best) = engine.population.iter().max_by(|a, b| {
-            a.fitness.partial_cmp(&b.fitness).unwrap_or(std::cmp::Ordering::Equal)
+            a.fitness
+                .partial_cmp(&b.fitness)
+                .unwrap_or(std::cmp::Ordering::Equal)
         }) {
             next_generation.push(best.clone());
         }
@@ -752,7 +841,11 @@ mod tests {
         let best_before = engine
             .population
             .iter()
-            .max_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.fitness
+                    .partial_cmp(&b.fitness)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .unwrap()
             .clone();
 
@@ -761,7 +854,9 @@ mod tests {
 
         // Elitism: carry over the best
         if let Some(best) = engine.population.iter().max_by(|a, b| {
-            a.fitness.partial_cmp(&b.fitness).unwrap_or(std::cmp::Ordering::Equal)
+            a.fitness
+                .partial_cmp(&b.fitness)
+                .unwrap_or(std::cmp::Ordering::Equal)
         }) {
             next_generation.push(best.clone());
         }
@@ -793,7 +888,7 @@ mod tests {
         let mut config = get_test_config();
         config.num_generations = 2; // Keep it short for testing
         config.population_size = 5;
-        
+
         let metrics_config = get_metrics_config();
         let grammar = get_test_grammar();
         let candles = get_test_candles_extended();
@@ -803,11 +898,11 @@ mod tests {
 
         // Evolution should complete and return final population
         assert_eq!(final_population.len(), config.population_size);
-        
+
         // Population should be sorted by fitness (descending)
         for i in 1..final_population.len() {
             assert!(
-                final_population[i-1].fitness >= final_population[i].fitness,
+                final_population[i - 1].fitness >= final_population[i].fitness,
                 "Population should be sorted by fitness in descending order"
             );
         }
@@ -832,7 +927,7 @@ mod tests {
 
         // Test the crossover + mutation pipeline
         let mut children_genomes = engine.crossover(&parent1.genome, &parent2.genome);
-        
+
         // Apply mutation to each child
         for genome in children_genomes.iter_mut() {
             engine.mutate(genome);
@@ -848,7 +943,7 @@ mod tests {
             .collect();
 
         assert_eq!(young_blood.len(), 2);
-        
+
         for child in &young_blood {
             assert_eq!(child.fitness, f64::NEG_INFINITY);
             assert!(!child.genome.is_empty());
