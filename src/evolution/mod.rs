@@ -10,6 +10,7 @@ use log::{debug, error, info, warn};
 use rand::prelude::*;
 use rand::rng;
 
+/// Penalty to assign when a strategy is so egregiously bad it must be excised from the gene pool
 const INFINITE_PENALTY: f64 = f64::NEG_INFINITY;
 
 /// Alias within crate for genome representation
@@ -119,7 +120,10 @@ impl<'a> EvolutionEngine<'a> {
 
             // mapping_failures, vm_errors are counted to penalize degenerate trading
             // strategies
-            let PopulationEvaluationReport{mapping_failures, vm_errors} = self.evaluate_population();
+            let PopulationEvaluationReport {
+                mapping_failures,
+                vm_errors,
+            } = self.evaluate_population();
             let avg_genome_len = self
                 .population
                 .iter()
@@ -236,7 +240,11 @@ impl<'a> EvolutionEngine<'a> {
                 let genome = self.population[i].genome.clone();
 
                 // Delegates the actual fitness evaluation
-                let FitnessEvaluationReport{fitness, mapping_failure_occurred, vm_error_occurred} = self.calculate_fitness(&genome);
+                let FitnessEvaluationReport {
+                    fitness,
+                    mapping_failure_occurred,
+                    vm_error_occurred,
+                } = self.calculate_fitness(&genome);
                 self.population[i].fitness = fitness;
                 if mapping_failure_occurred {
                     mapping_failures += 1;
@@ -379,6 +387,15 @@ impl<'a> EvolutionEngine<'a> {
         }
     }
 
+    /// Selects the parents that will be used for next generation
+    ///
+    /// It uses a tournament selection approach with a k size defined in the `tournament_size` field of the `config` field of the `EvolutionEngine`.
+    ///
+    /// # Arguments
+    /// * `&self` - The EvolutionEngine that will orchestrate the evolution process
+    ///
+    /// # Returns
+    /// * `Vec<Individual>` - The vector of `Individual` who won the right to become parents
     fn select_parents(&self) -> Vec<Individual> {
         let tournament_size = self.config.tournament_size;
         let mut selected_parents = Vec::new();
@@ -449,6 +466,17 @@ impl<'a> EvolutionEngine<'a> {
         ]
     }
 
+    /// Mutates a given genome
+    ///
+    /// It uses a Per-Gene-Probabibilistic Mutation approach. Just a fancy way of saying, the `mutation_rate` field in the `config` of the `EvolutionEngine` applies to the
+    /// probability of a random gene being modified and not the probability of some individual
+    /// being modified.
+    ///
+    /// # Arguments
+    /// * `&self` - The EvolutionEngine that will orchestrate the evolution process
+    /// * `genome` - Mutable reference to the genome to mutate
+    /// # Returns
+    /// * Nothing.
     fn mutate(&self, genome: &mut Genome) {
         if genome.is_empty() {
             return;
@@ -709,11 +737,11 @@ mod tests {
         let mut engine = EvolutionEngine::new(&config, &metrics_config, &bad_grammar, &candles);
 
         let genome: Genome = vec![0];
-        let (fitness, map_err, vm_err) = engine.calculate_fitness(&genome);
+        let FitnessEvaluationReport {fitness, mapping_failure_occurred, vm_error_occurred} = engine.calculate_fitness(&genome);
 
         assert_eq!(fitness, INFINITE_PENALTY);
-        assert!(map_err);
-        assert!(!vm_err);
+        assert!(mapping_failure_occurred);
+        assert!(!vm_error_occurred);
     }
 
     #[test]
@@ -751,10 +779,10 @@ mod tests {
         let mut engine = EvolutionEngine::new(&config, &metrics_config, &bad_grammar, &candles);
 
         engine.initialize_population();
-        let (mapping_failures, _vm_errors) = engine.evaluate_population();
+        let PopulationEvaluationReport {mapping_failures, vm_errors: _vm_errors} = engine.evaluate_population();
 
         // All individuals should have mapping failures with bad grammar
-        assert_eq!(mapping_failures, config.population_size as u32);
+        assert_eq!(mapping_failures, config.population_size);
 
         // All individuals should have catastrophic fitness
         for individual in &engine.population {
