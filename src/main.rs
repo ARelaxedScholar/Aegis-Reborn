@@ -47,7 +47,6 @@ fn prepare_data(data_config: &DataConfig) -> Result<(Vec<OHLCV>, Vec<OHLCV>), St
     Ok((training_data.to_vec(), hold_out_data.to_vec()))
 }
 
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     log::info!("Booting Aegis Reborn...");
@@ -88,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     let champions = engine.evolve();
 
-    // 5. Final Gauntlet 
+    // 5. Final Gauntlet
     let size_of_council = config.ga.size_of_council;
     log::info!("--- Evolution Complete: Preparing for Final Gauntlet ---");
     log::info!("Top {size_of_council} Champions (Council):");
@@ -110,7 +109,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let final_reports = run_gauntlet(
-        &champions.iter().take(size_of_council).cloned().collect::<Vec<_>>(),
+        &champions
+            .iter()
+            .take(size_of_council)
+            .cloned()
+            .collect::<Vec<_>>(),
         &training_validation_data,
         &hold_out_data,
         &grammar,
