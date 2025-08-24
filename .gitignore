@@ -1,1 +1,25 @@
 /target
+
+# General Ignore Rules for logs and temporary files
+# Ignore all files ending with .log
+*.log
+
+# Ignore all files ending with .txt
+*.txt
+
+# Ignore specific log directories
+logs/
+tmp/
+temp/
+
+# Ignore files within specific directories
+debug/*.log
+
+error.log
+server.log
+
+# --- Exceptions ---
+docs/*.txt
+!docs/README.txt
+
+
