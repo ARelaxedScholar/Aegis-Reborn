@@ -9,10 +9,26 @@ use crate::evolution::mapper::GrammarBasedMapper;
 use log::{debug, error, info, warn};
 use rand::prelude::*;
 use rand::rng;
-
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 /// Penalty to assign when a strategy is so egregiously bad it must be excised from the gene pool
 const INFINITE_PENALTY: f64 = f64::NEG_INFINITY;
 
+/// Simple wrapper to make raw pointers Send + Sync (e.g. relevant for `evaluate_population`)
+pub struct SendSyncPtr<T>(*mut T);
+unsafe impl<T> Send for SendSyncPtr<T> {}
+unsafe impl<T> Sync for SendSyncPtr<T> {}
+
+impl<T> SendSyncPtr<T> {
+    fn new(ptr: *mut T) -> Self {
+        SendSyncPtr(ptr)
+    }
+
+    unsafe fn get_mut(&self, index: usize) -> &mut T {
+        &mut *self.0.add(index)
+    }
+}
 /// Alias within crate for genome representation
 pub type Genome = Vec<u32>;
 
@@ -227,48 +243,73 @@ impl<'a> EvolutionEngine<'a> {
     /// modifying its `population` field. Each generation, it is called to update the `fitness`
     /// scores of the current generation. It itself delegates to the `calculate_fitness` function.
     ///
+    /// SAFETY INVARIANTS:
+    /// - `indices` must contain only unique, in-bounds indices into `self.population`.
+    /// - `self.population` must not be resized or reallocated during this operation.
+    /// - `calculate_fitness` must not mutate `self` or cause side effects.
+    /// If these invariants are violated, undefined behavior may occur.
+    /// Any changes to index collection or population structure must be carefully audited!
     /// # Arguments
     /// * `&mut self` - The EvolutionEngine for which you need to initialize the population
     ///
     /// # Returns
     /// `PopulationEvaluationReport`
     pub fn evaluate_population(&mut self) -> PopulationEvaluationReport {
-        let mut mapping_failures = 0;
-        let mut vm_errors = 0;
+        let indices: Vec<usize> = self
+            .population
+            .iter()
+            .enumerate()
+            .filter_map(|(i, ind)| (ind.fitness == f64::NEG_INFINITY).then_some(i))
+            .collect();
 
-        for i in 0..self.population.len() {
-            if self.population[i].fitness == f64::NEG_INFINITY {
-                let genome = self.population[i].genome.clone();
-
-                // Delegates the actual fitness evaluation
-                let FitnessEvaluationReport {
-                    fitness,
-                    mapping_failure_occurred,
-                    vm_error_occurred,
-                } = self.calculate_fitness(&genome);
-                self.population[i].fitness = fitness;
-                if mapping_failure_occurred {
-                    mapping_failures += 1;
-                }
-                if vm_error_occurred {
-                    vm_errors += 1;
-                }
-            }
+        if indices.is_empty() {
+            return PopulationEvaluationReport {
+                mapping_failures: 0,
+                vm_errors: 0,
+            };
         }
 
+        #[cfg(debug_assertions)]
+        {
+            let mut sorted_indices = indices.clone();
+            sorted_indices.sort_unstable();
+            let original_len = sorted_indices.len();
+            sorted_indices.dedup();
+            assert_eq!(
+                original_len,
+                sorted_indices.len(),
+                "Indices for parallel evaluation must be unique!"
+            );
+        }
+
+        let population_ptr = SendSyncPtr::new(self.population.as_mut_ptr());
+        let mapping_failures = AtomicUsize::new(0);
+        let vm_errors = AtomicUsize::new(0);
+
+        indices.par_iter().for_each(|&i| unsafe {
+            let individual = population_ptr.get_mut(i);
+            let genome = individual.genome.clone();
+            let report = self.calculate_fitness(&genome);
+
+            individual.fitness = report.fitness;
+
+            if report.mapping_failure_occurred {
+                mapping_failures.fetch_add(1, Ordering::Relaxed);
+            }
+            if report.vm_error_occurred {
+                vm_errors.fetch_add(1, Ordering::Relaxed);
+            }
+        });
+
         PopulationEvaluationReport {
-            mapping_failures,
-            vm_errors,
+            mapping_failures: mapping_failures.load(Ordering::Relaxed),
+            vm_errors: vm_errors.load(Ordering::Relaxed),
         }
     }
 
     /// A function which delegates the actual evaluation of a genome to the `WalkForwardValidator`
     /// and then aggregates the result to send them upstream.
-    /// Evaluates the population
-    ///
-    /// This method mutably borrows the `EvolutionEngine` instance,
-    /// modifying its `population` field. Each generation, it is the workhorse which actually
-    /// computes the scores of the current generation.
+    /// Evaluates the fitness of a given genome.
     ///
     /// # Arguments
     /// * `&mut self` - The `EvolutionEngine` for which you need to initialize the population
@@ -276,15 +317,11 @@ impl<'a> EvolutionEngine<'a> {
     ///
     /// # Returns
     /// `FitnessEvaluationReport`
-    fn calculate_fitness(&mut self, genome: &Genome) -> FitnessEvaluationReport {
-        // Step 1: Map genome to strategy
+    fn calculate_fitness(&self, genome: &Genome) -> FitnessEvaluationReport {
         let strategy = match self.mapper.map(genome) {
             Ok(s) => s,
             Err(e) => {
-                debug!(
-                    "Mapping failed for genome: {:?}. Assigning catastrophic fitness.",
-                    e
-                );
+                debug!("Mapping failed: {}. Assigning catastrophic fitness.", e);
                 return FitnessEvaluationReport {
                     fitness: INFINITE_PENALTY,
                     mapping_failure_occurred: true,
@@ -293,9 +330,8 @@ impl<'a> EvolutionEngine<'a> {
             }
         };
 
-        // Step 2: Validate strategy has required components
         if !strategy.programs.contains_key("entry") {
-            debug!("Strategy missing entry program. Assigning catastrophic fitness.");
+            debug!("Strategy missing 'entry' program. Assigning catastrophic fitness.");
             return FitnessEvaluationReport {
                 fitness: INFINITE_PENALTY,
                 mapping_failure_occurred: true,
@@ -303,7 +339,6 @@ impl<'a> EvolutionEngine<'a> {
             };
         }
 
-        // Step 3: Create and configure walk-forward validator
         let validator = match WalkForwardValidator::new(
             self.config.training_window_size,
             self.config.test_window_size,
@@ -316,11 +351,10 @@ impl<'a> EvolutionEngine<'a> {
                     fitness: INFINITE_PENALTY,
                     mapping_failure_occurred: false,
                     vm_error_occurred: true,
-                }; // Treat as VM error
+                };
             }
         };
 
-        // Step 4: Run walk-forward validation
         let result = match validator.validate(self.candles, &strategy) {
             Ok(r) => r,
             Err(e) => {
@@ -329,14 +363,13 @@ impl<'a> EvolutionEngine<'a> {
                     fitness: INFINITE_PENALTY,
                     mapping_failure_occurred: false,
                     vm_error_occurred: true,
-                }; // VM/validation error
+                };
             }
         };
 
-        // Step 5: Check for execution errors
         if result.entry_error_count > 0 || result.exit_error_count > 0 {
             debug!(
-                "Strategy execution errors - Entry: {}, Exit: {}",
+                "Strategy execution errors - Entry: {}, Exit: {}. Assigning catastrophic fitness.",
                 result.entry_error_count, result.exit_error_count
             );
             return FitnessEvaluationReport {
@@ -346,43 +379,32 @@ impl<'a> EvolutionEngine<'a> {
             };
         }
 
-        // Step 6: Calculate Calmar ratio with smoothing
         let smoothing_constant = self.config.alpha;
         let calmar = if result.max_drawdown.abs() < 1e-9 {
-            // Handle near-zero drawdown case
             if result.annualized_return > 0.0 {
-                result.annualized_return / smoothing_constant // Conservative approach
+                result.annualized_return / smoothing_constant
             } else {
-                result.annualized_return // Negative returns get full penalty
+                result.annualized_return
             }
         } else {
             result.annualized_return / (smoothing_constant + result.max_drawdown)
         };
 
-        // Step 7: Apply parsimony pressure
         let total_opcodes = strategy.programs.values().map(|p| p.len()).sum::<usize>() as f64;
         let penalty = total_opcodes * self.config.parsimony_penalty;
-
-        // Step 8: Calculate final fitness
         let fitness = if calmar > 0.0 {
             calmar * (1.0 - penalty).max(0.0)
         } else {
-            // For negative Calmar, don't apply parsimony bonus
             calmar
         };
 
         debug!(
-            "Fitness calculation: annualized_return={:.4}, max_drawdown={:.4}, calmar={:.4}, opcodes={}, penalty={:.4}, final_fitness={:.4}",
-            result.annualized_return,
-            result.max_drawdown,
-            calmar,
-            total_opcodes as u32,
-            penalty,
-            fitness
+            "Fitness: ann_ret={:.4}, mdd={:.4}, calmar={:.4}, opcodes={}, penalty={:.4}, final={:.4}",
+            result.annualized_return, result.max_drawdown, calmar, total_opcodes, penalty, fitness
         );
 
         FitnessEvaluationReport {
-            fitness: fitness,
+            fitness,
             mapping_failure_occurred: false,
             vm_error_occurred: false,
         }
