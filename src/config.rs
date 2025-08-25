@@ -2,7 +2,7 @@ use serde::Deserialize;
 use std::fs;
 use std::path::Path;
 
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Copy, Deserialize, Debug)]
 pub struct MetricsConfig {
     pub risk_free_rate: f64,
     pub bootstrap_runs: usize,
@@ -14,7 +14,7 @@ pub struct DataConfig {
     pub hold_out_split: f64,
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Clone, Copy, Deserialize, Debug, Default)]
 pub struct GaConfig {
     pub population_size: usize,
     pub num_generations: usize,

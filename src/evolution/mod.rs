@@ -30,6 +30,7 @@ pub struct Individual {
 /// This is the beating heart of this architecture, it orchestrate the entire evolution process.
 /// It works in tandem with the `WalkForwardValidator` and the `GrammarBasedMapper` to evolve
 /// (hopefully) robust strategies.
+#[derive(Clone)]
 pub struct EvolutionEngine<'a> {
     /// This is a reference to the user-defined config for a given evolution run
     config: &'a GaConfig,
@@ -49,7 +50,7 @@ pub struct EvolutionEngine<'a> {
 /// which contains a count of the errors which occured during VM execution `vm_errors`
 /// and a count of the error which occured during mapping `mapping_failures`
 #[derive(Debug, Copy, Clone)]
-struct PopulationEvaluationReport {
+pub struct PopulationEvaluationReport {
     mapping_failures: usize,
     vm_errors: usize,
 }
@@ -205,7 +206,7 @@ impl<'a> EvolutionEngine<'a> {
     ///
     /// # Returns
     /// Nothing. `EvolutionEngine` is modified in-place.
-    fn initialize_population(&mut self) {
+    pub fn initialize_population(&mut self) {
         let mut rng = rng();
         self.population = (0..self.config.population_size)
             .map(|_| {
@@ -231,7 +232,7 @@ impl<'a> EvolutionEngine<'a> {
     ///
     /// # Returns
     /// `PopulationEvaluationReport`
-    fn evaluate_population(&mut self) -> PopulationEvaluationReport {
+    pub fn evaluate_population(&mut self) -> PopulationEvaluationReport {
         let mut mapping_failures = 0;
         let mut vm_errors = 0;
 

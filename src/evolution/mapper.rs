@@ -33,12 +33,11 @@ struct MappingContext<'a> {
     recursion_depth: u32,
 }
 
-
 impl<'a> MappingContext<'a> {
     /// Creates a new `MappingContext`
     ///
     /// # Arguments
-    /// * `genome` - Reference to a `Genome` struct representing the genome to map to a `Strategy` 
+    /// * `genome` - Reference to a `Genome` struct representing the genome to map to a `Strategy`
     ///
     /// # Returns
     /// `MappingContext`
@@ -58,7 +57,7 @@ impl<'a> MappingContext<'a> {
     /// modifying its `codon_idx` field after each call to the function.
     ///
     /// # Arguments
-    /// * `&mut self` - Reference to a `Genome` struct representing the genome to map to a `Strategy` 
+    /// * `&mut self` - Reference to a `Genome` struct representing the genome to map to a `Strategy`
     ///
     /// # Returns
     /// `u32` - the `u32` codon to be mapped
@@ -75,6 +74,7 @@ impl<'a> MappingContext<'a> {
 /// This struct maps (you don't say) the genome into a `Strategy` struct.
 /// The `max_tokens` allowed for a given genome, and the `max_recursion_depth` to allow when
 /// mapping.
+#[derive(Clone)]
 pub struct GrammarBasedMapper<'a> {
     /// The `Grammar` to be used for the mapping
     grammar: &'a Grammar,
@@ -89,7 +89,7 @@ impl<'a> GrammarBasedMapper<'a> {
     ///
     /// # Arguments
     /// * `grammar` - Reference to the `Grammar` that will be used for the mapping
-    /// * `max_tokens` - Maximum number of tokens allowed for a given genome 
+    /// * `max_tokens` - Maximum number of tokens allowed for a given genome
     /// * `max_recursion_depth` - Maximum recursion depth allowed during the mapping process
     ///
     /// # Returns
@@ -107,10 +107,10 @@ impl<'a> GrammarBasedMapper<'a> {
     ///
     /// # Arguments
     /// * `&self` - Reference to `GrammarBasedMapper`
-    /// * `genome` - The genome that must be turned into an actual program 
+    /// * `genome` - The genome that must be turned into an actual program
     ///
     /// # Returns
-    /// * `Result<Strategy, MappingError>` 
+    /// * `Result<Strategy, MappingError>`
     pub fn map(&self, genome: &Genome) -> Result<Strategy, MappingError> {
         let mut context = MappingContext::new(genome);
         let mut programs = HashMap::new();
@@ -162,13 +162,13 @@ impl<'a> GrammarBasedMapper<'a> {
     ///
     /// # Arguments
     /// * `&self` - Reference to `GrammarBasedMapper`
-    /// * `symbol` - The genome that must be turned into an actual program 
+    /// * `symbol` - The genome that must be turned into an actual program
     /// * `context` - A mutable reference to `MappingContext` which keeps track of the current
     /// `recursion_depth` and `token_count`
     /// * `bytecode` - A mutable reference to the `Vec<Op>` representing this program's code
     ///
     /// # Returns
-    /// * `Result<(), MappingError>` 
+    /// * `Result<(), MappingError>`
     fn expand(
         &self,
         symbol: &str,
@@ -209,8 +209,8 @@ impl<'a> GrammarBasedMapper<'a> {
         } else {
             // Translate terminal into an Op or a placeholder
             match symbol {
-                "ENTRY" => bytecode.push(Op::EntryMarker), 
-                "EXIT" => bytecode.push(Op::ExitMarker), 
+                "ENTRY" => bytecode.push(Op::EntryMarker),
+                "EXIT" => bytecode.push(Op::ExitMarker),
                 _ => {
                     if let Some(op) = self.terminal_to_op(symbol) {
                         bytecode.push(op);
@@ -226,13 +226,13 @@ impl<'a> GrammarBasedMapper<'a> {
 
     /// This function is just a huge match statement which takes care
     /// of associating given (terminal) symbols to their equivalent `vm::Op` code
-    /// 
+    ///
     /// # Arguments
     /// * `&self` - Reference to `GrammarBasedMapper`
     /// * `terminal` - String slice representing the terminal symbol to map
     ///
     /// # Returns
-    /// * `Option<Op>` 
+    /// * `Option<Op>`
     fn terminal_to_op(&self, terminal: &str) -> Option<Op> {
         match terminal {
             "ADD" => Some(Op::Add),
