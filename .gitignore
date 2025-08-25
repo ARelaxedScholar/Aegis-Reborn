@@ -7,6 +7,9 @@
 # Ignore all files ending with .txt
 *.txt
 
+# Ignore all outputs
+*.json
+
 # Ignore specific log directories
 logs/
 tmp/
