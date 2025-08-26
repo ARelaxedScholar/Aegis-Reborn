@@ -1,5 +1,7 @@
 /target
 
+# Ignore the tags file
+tags
 # General Ignore Rules for logs and temporary files
 # Ignore all files ending with .log
 *.log
