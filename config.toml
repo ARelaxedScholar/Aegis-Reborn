@@ -26,5 +26,6 @@ training_window_size = 504 # ~2 years of trading days
 test_window_size = 21      # ~1 month of trading days
 
 [metrics]
+initial_cash = 10_000.0
 risk_free_rate = 0.02 # e.g., 2% annualized risk-free rate
 bootstrap_runs = 2_000

@@ -7,7 +7,6 @@ use log::warn;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
-pub const INITIAL_CASH: f64 = 10_000.0;
 const ANNUALIZATION_FACTOR: f64 = 252.0; // Assuming 252 trading days in a year
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -25,12 +24,12 @@ struct Portfolio {
 }
 
 impl Portfolio {
-    fn new() -> Self {
+    fn new(initial_cash: f64) -> Self {
         Self {
-            cash: INITIAL_CASH,
+            cash: initial_cash,
             position_size: 0.0,
             state: PositionState::Flat,
-            equity_curve: vec![INITIAL_CASH],
+            equity_curve: vec![initial_cash],
         }
     }
     /// Updates the equity curve based on the current portfolio value.
@@ -151,14 +150,15 @@ impl Backtester {
         candles: &[OHLCV],
         strategy: &Strategy,
         risk_free_rate: f64,
+        initial_cash: f64,
     ) -> BacktestResult {
-        let mut portfolio = Portfolio::new();
+        let mut portfolio = Portfolio::new(initial_cash);
         let mut entry_error_count = 0;
         let mut exit_error_count = 0;
 
         if candles.is_empty() {
             return BacktestResult {
-                final_equity: INITIAL_CASH,
+                final_equity: initial_cash,
                 ..Default::default()
             };
         }
@@ -297,7 +297,7 @@ mod tests {
         let result = backtester.run(&candles, &strategy, 0.02);
 
         // Expected: Never enters, so cash remains initial. All metrics are neutral.
-        assert_eq!(result.final_equity, INITIAL_CASH);
+        assert_eq!(result.final_equity, initial_cash);
         assert_eq!(result.entry_error_count, 0);
         assert_eq!(result.exit_error_count, 0);
         assert_eq!(result.max_drawdown, 0.0);
@@ -317,7 +317,7 @@ mod tests {
         let strategy = Strategy { programs };
 
         let result = backtester.run(&candles, &strategy, 0.02);
-        assert_eq!(result.final_equity, INITIAL_CASH);
+        assert_eq!(result.final_equity, initial_cash);
         assert_eq!(result.entry_error_count, 1);
         assert_eq!(result.exit_error_count, 0);
         assert_eq!(result.max_drawdown, 0.0);

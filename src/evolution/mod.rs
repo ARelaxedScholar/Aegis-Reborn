@@ -343,6 +343,7 @@ impl<'a> EvolutionEngine<'a> {
             self.config.training_window_size,
             self.config.test_window_size,
             self.metrics_params.risk_free_rate,
+            self.metrics_params.initial_cash,
         ) {
             Ok(v) => v,
             Err(e) => {

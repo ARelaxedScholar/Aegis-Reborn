@@ -1,6 +1,6 @@
 use crate::data::OHLCV;
 use crate::evaluation::backtester::{
-    BacktestResult, Backtester, INITIAL_CASH, calculate_annualized_return, calculate_max_drawdown,
+    BacktestResult, Backtester, calculate_annualized_return, calculate_max_drawdown,
     calculate_sharpe_ratio,
 };
 use crate::strategy::Strategy;
@@ -67,6 +67,7 @@ pub struct WalkForwardValidator {
     training_window_size: usize,
     test_window_size: usize,
     risk_free_rate: f64,
+    initial_cash: f64,
 }
 
 impl WalkForwardValidator {
@@ -87,6 +88,7 @@ impl WalkForwardValidator {
         training_window_size: usize,
         test_window_size: usize,
         risk_free_rate: f64,
+        initial_cash: f64,
     ) -> Result<Self, WalkForwardError> {
         // Validate window sizes
         if training_window_size == 0 {
@@ -115,6 +117,12 @@ impl WalkForwardValidator {
             ));
         }
 
+        if initial_cash < 0.0 {
+            return Err(WalkForwardError::ValidationFailed(
+                    "Initial cash passed is negative".to_string(),
+                    ));
+        }
+
         debug!(
             "Created WalkForwardValidator with training_window: {}, test_window: {}, risk_free_rate: {:.4}",
             training_window_size, test_window_size, risk_free_rate
@@ -124,6 +132,7 @@ impl WalkForwardValidator {
             training_window_size,
             test_window_size,
             risk_free_rate,
+            initial_cash,
         })
     }
 
@@ -237,7 +246,7 @@ impl WalkForwardValidator {
         // Handle edge case where composite curve is empty (shouldn't happen with successful windows)
         if composite_equity_curve.is_empty() {
             warn!("Composite equity curve is empty, initializing with initial cash");
-            composite_equity_curve.push(INITIAL_CASH);
+            composite_equity_curve.push(self.initial_cash);
         }
 
         // Calculate final metrics
@@ -303,7 +312,7 @@ impl WalkForwardValidator {
             test_slice.len()
         );
 
-        let result = backtester.run(test_slice, strategy, self.risk_free_rate);
+        let result = backtester.run(test_slice, strategy, self.risk_free_rate, self.initial_cash);
 
         // Validate backtest result
         if result.equity_curve.is_empty() {
@@ -493,10 +502,11 @@ impl WalkForwardValidator {
         training_window_size: usize,
         test_window_size: usize,
         risk_free_rate: f64,
+        initial_cash: f64,
         data_length: usize,
     ) -> Result<usize, WalkForwardError> {
         // Create temporary validator to check parameters
-        let validator = Self::new(training_window_size, test_window_size, risk_free_rate)?;
+        let validator = Self::new(training_window_size, test_window_size, risk_free_rate, initial_cash)?;
 
         let estimated_windows = validator.estimate_windows(data_length);
         if estimated_windows == 0 {
@@ -530,13 +540,13 @@ mod tests {
     #[test]
     fn test_parameter_validation() {
         // Valid case
-        assert!(WalkForwardValidator::validate_parameters(100, 20, 0.05, 200).is_ok());
+        assert!(WalkForwardValidator::validate_parameters(100, 20, 0.05, 200, 10.0).is_ok());
 
         // Insufficient data
-        assert!(WalkForwardValidator::validate_parameters(100, 20, 0.05, 100).is_err());
+        assert!(WalkForwardValidator::validate_parameters(100, 20, 0.05, 100, 10.0).is_err());
 
         // Invalid parameters
-        assert!(WalkForwardValidator::validate_parameters(0, 20, 0.05, 200).is_err());
+        assert!(WalkForwardValidator::validate_parameters(0, 20, 0.05, 200, 10.0).is_err());
     }
 
     #[test]

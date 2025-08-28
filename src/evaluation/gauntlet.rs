@@ -268,7 +268,7 @@ fn process_champion(
 
     // Run hold-out test
     let mut backtester = Backtester::new();
-    let hold_out_result = backtester.run(hold_out_data, &strategy, metrics_config.risk_free_rate);
+    let hold_out_result = backtester.run(hold_out_data, &strategy, metrics_config.risk_free_rate, metrics_config.initial_cash);
 
     if !hold_out_result.final_equity.is_finite() {
         return Err(GauntletError::CalculationError(format!(
@@ -285,7 +285,7 @@ fn process_champion(
     // 2) PnL bootstrap (only if we can extract a return stream)
     let pnl_bootstrap_stats = match extract_strategy_returns(&hold_out_result) {
         Ok(rets) => {
-            let start_eq = crate::evaluation::backtester::INITIAL_CASH;
+            let start_eq = metrics_config.initial_cash;
             match run_pnl_bootstrap(start_eq, &rets, metrics_config, bootstrap_config) {
                 Ok(stats) => Some(stats),
                 Err(e) => {
@@ -354,7 +354,7 @@ fn run_market_bootstrap(
         )?;
 
         let mut tester = Backtester::new();
-        let result = tester.run(&synthetic_candles, strategy, metrics_config.risk_free_rate);
+        let result = tester.run(&synthetic_candles, strategy, metrics_config.risk_free_rate, metrics_config.initial_cash);
         if result.final_equity.is_finite() && result.final_equity > 0.0 {
             results.push(result);
         } else {
@@ -369,7 +369,7 @@ fn run_market_bootstrap(
         return Err("All market bootstrap runs failed validation".to_string());
     }
 
-    calculate_bootstrap_statistics(&results)
+    calculate_bootstrap_statistics(&results, metrics_config.initial_cash)
 }
 
 /// Intrabar distribution built from historical bars: positive deltas for high-close (upside wick)
@@ -549,7 +549,7 @@ fn run_pnl_bootstrap(
         })
         .collect();
 
-    calculate_bootstrap_statistics(&results)
+    calculate_bootstrap_statistics(&results, metrics_config.initial_cash)
 }
 
 fn create_overlapping_blocks<T: Copy>(
@@ -634,7 +634,7 @@ fn resample_blocks(
 }
 
 /// Calculate comprehensive bootstrap statistics
-fn calculate_bootstrap_statistics(results: &[BacktestResult]) -> Result<BootstrapStats, String> {
+fn calculate_bootstrap_statistics(results: &[BacktestResult], initial_cash: f64) -> Result<BootstrapStats, String> {
     if results.is_empty() {
         return Err("No bootstrap results to analyze".to_string());
     }
@@ -680,7 +680,7 @@ fn calculate_bootstrap_statistics(results: &[BacktestResult]) -> Result<Bootstra
 
     let profitable_count = equities
         .iter()
-        .filter(|&&equity| equity > crate::evaluation::backtester::INITIAL_CASH)
+        .filter(|&&equity| equity > initial_cash)
         .count();
     let profitable_percentage = (profitable_count as f64 / n as f64) * 100.0;
 
