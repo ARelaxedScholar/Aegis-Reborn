@@ -174,8 +174,9 @@ mod tests {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("good.bnf");
         let mut file = File::create(&file_path).unwrap();
-        write!(file, "<start> ::= A | B\nA ::= 'a'\nB ::= 'b'").unwrap();
-        assert!(Grammar::new(&file_path).is_ok());
+        write!(file, "<start> ::= <A> | <B>\n<A> ::= 'a'\n<B> ::= 'b'").unwrap();
+        let result = Grammar::new(&file_path);
+assert!(result.is_ok(), "Error is {:?}", result.unwrap_err());
     }
 
     #[test]

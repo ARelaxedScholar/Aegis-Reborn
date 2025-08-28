@@ -5,6 +5,7 @@ use std::path::Path;
 #[derive(Clone, Copy, Deserialize, Debug)]
 pub struct MetricsConfig {
     pub initial_cash: f64,
+    pub annualization_rate: f64,
     pub risk_free_rate: f64,
     pub bootstrap_runs: usize,
 }
@@ -80,6 +81,9 @@ impl Config {
         }
         if self.metrics.initial_cash <= 0.0 {
             return Err("initial_cash must be positive".to_string());
+        }
+        if self.metrics.annualization_rate <= 0.0 {
+            return Err("annualization_rate must be positive".to_string());
         }
         Ok(())
     }
