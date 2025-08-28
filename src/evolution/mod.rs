@@ -344,6 +344,7 @@ impl<'a> EvolutionEngine<'a> {
             self.config.test_window_size,
             self.metrics_params.risk_free_rate,
             self.metrics_params.initial_cash,
+            self.metrics_params.annualization_rate,
         ) {
             Ok(v) => v,
             Err(e) => {
@@ -546,6 +547,8 @@ mod tests {
         MetricsConfig {
             risk_free_rate: 0.02,
             bootstrap_runs: 100,
+            initial_cash: 10_000.0,
+            annualization_rate: 252.0,
         }
     }
 
