@@ -7,22 +7,43 @@ use log::warn;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
+/// Struct representing our current position
+/// at any given tiem during the backtest
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum PositionState {
+    /// Out of the market, not invested
     Flat,
+    /// Hoping for growth in the market, invested
     Long,
 }
 
+/// A convenience struct containing all the data
+/// needed to compute metrics, while keeping track
+/// of the performance of our portfolio under a given
+/// strategy
 #[derive(Debug)]
 struct Portfolio {
+    /// Amount of cash available to buy new holdings
     cash: f64,
+    /// Factor to use to annualize our metrics (number of candles in year)
     annualization_factor: f64,
-    position_size: f64,
+    /// Number of shares for our asset
+    position_size: f64, // Currently a single asset; may become a Vec<f64> or a HashMap
+    /// Current `PositionState`
     state: PositionState,
+    /// Tracks our equity (cash + value of holdings) during the backtesting process
     equity_curve: Vec<f64>,
 }
 
 impl Portfolio {
+    /// Loads OHLCV data from a CSV file and splits it into training and hold-out sets.
+    ///
+    /// # Arguments
+    /// * `initial_cash` - `f64` representing our starting cash amount
+    /// * `annualization_factor` - A `f64` representing the number of candles in a year
+    ///
+    /// # Returns
+    /// `Portfolio`
     fn new(initial_cash: f64, annualization_factor: f64) -> Self {
         Self {
             cash: initial_cash,
@@ -32,7 +53,19 @@ impl Portfolio {
             equity_curve: vec![initial_cash],
         }
     }
+
     /// Updates the equity curve based on the current portfolio value.
+    ///
+    /// This method mutably borrows the `Portfolio` instance,
+    /// modifying its `equity_curve` field.
+    ///
+    /// # Arguments
+    /// * `&mut self` - The `Portfolio` instance to update
+    /// * `annualization_factor` - A `f64` representing the current price of the asset we're
+    /// tracking
+    ///
+    /// # Returns
+    /// `Portfolio`
     fn update_equity(&mut self, current_price: f64) {
         let equity = self.cash + self.position_size * current_price;
         self.equity_curve.push(equity);
@@ -42,16 +75,29 @@ impl Portfolio {
 /// The complete result of a backtest run, with key performance metrics.
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct BacktestResult {
+    /// Equity after last candle
     pub final_equity: f64,
+    /// Number of errors due to the "entry" program
     pub entry_error_count: u32,
+    /// Number of errors due to the "exit" program
     pub exit_error_count: u32,
+    /// Annualized return... (like yeah)
     pub annualized_return: f64,
+    /// Maximum drawdown observed during the backtest (As a percentage)
     pub max_drawdown: f64,
+    /// Sharpe Ratio for the `Strategy`
     pub sharpe_ratio: f64,
+    /// Equity curves associated with a given `Strategy`
     pub equity_curve: Vec<f64>, // Expose the equity curve for aggregation
 }
 
 /// Scans all programs in a strategy to find which indicators are required.
+///
+/// # Arguments
+/// * `strategy` - A reference to a `Strategy` struct that we'll scan to prepare the indicators
+///
+/// # Returns
+/// `Vec<IndicatorType>`, a `Vec` containing our wrapper type `IndicatorType`
 pub fn get_required_indicators(strategy: &Strategy) -> Vec<IndicatorType> {
     let mut indicators = HashSet::new();
     for program in strategy.programs.values() {
@@ -65,6 +111,14 @@ pub fn get_required_indicators(strategy: &Strategy) -> Vec<IndicatorType> {
 }
 
 /// Calculates the annualized return based on the equity curve.
+///
+/// # Arguments
+/// * `equity_curve` - A reference to a container representing the equity curve of some strategy
+/// * `num_candles` - Number of candles for our scenario
+/// * `annualization_factor` - Number of candles in a year
+///
+/// # Returns
+/// `Vec<IndicatorType>`, a `Vec` containing our wrapper type `IndicatorType`
 pub fn calculate_annualized_return(
     equity_curve: &[f64],
     num_candles: usize,
@@ -82,6 +136,14 @@ pub fn calculate_annualized_return(
 }
 
 /// Calculates Sharpe Ratio
+///
+/// # Arguments
+/// * `equity_curve` - A reference to a container representing the equity curve of some strategy
+/// * `risk_free_rate` - Rate of return expected from a risk-free asset
+/// tracking
+///
+/// # Returns
+/// `f64`, our Sharpe Ratio
 pub fn calculate_sharpe_ratio(equity_curve: &[f64], risk_free_rate: f64) -> f64 {
     if equity_curve.len() < 20 {
         return 0.0;
@@ -116,6 +178,12 @@ pub fn calculate_sharpe_ratio(equity_curve: &[f64], risk_free_rate: f64) -> f64 
 }
 
 /// Calculates the maximum drawdown from an equity curve.
+///
+/// # Arguments
+/// * `equity_curve` - A reference to a container representing the equity curve of some strategy
+///
+/// # Returns
+/// `f64`, Max drawdown (as a percentage)
 pub fn calculate_max_drawdown(equity_curve: &[f64]) -> f64 {
     if equity_curve.is_empty() {
         return 0.0;
@@ -132,7 +200,10 @@ pub fn calculate_max_drawdown(equity_curve: &[f64]) -> f64 {
     max_drawdown
 }
 
+/// The struct that acts as a goon. Only know about the virtual machine which will
+/// be used to run the program.
 pub struct Backtester {
+    /// The `VirtualMachine` which defines the meaning of the operations defined in the programs
     vm: VirtualMachine,
 }
 
@@ -149,6 +220,24 @@ impl Backtester {
         }
     }
 
+    /// Runs the actual experiment for a given `Strategy`, this function encodes the logic (and our
+    /// assumptions) for how a strategy should be used. Based on current `PositionState` a
+    /// different program will be fetched and executed. The `risk_free_rate`,
+    /// `initial_cash` and `annualization_factor` are relevant for metrics.
+    ///
+    /// This method mutably borrows the `Backtester` instance because its `vm` field requires
+    /// mut to use its methods.
+    ///
+    /// # Arguments
+    /// * `&mut self` - The `Backtester` instance with the `vm` to use
+    /// * `candles` - Reference to a container of `OHLCV` candles
+    /// * `strategy` - Reference to the `Strategy` for which we are running the backtest
+    /// * `risk_free_rate` - A `f64` representing the expected returns generated by a risk-free investment
+    /// * `initial_cash` - A `f64` representing the starting cash amount
+    /// * `annualization_factor` - A `f64` representing the number of candles in a year (can technically be fractional)
+    ///
+    /// # Returns
+    /// `BacktestResult`
     pub fn run(
         &mut self,
         candles: &[OHLCV],
@@ -193,6 +282,8 @@ impl Backtester {
                                 portfolio.position_size = position_cost / candle.close;
                                 portfolio.cash = 0.0;
                                 portfolio.state = PositionState::Long;
+                            } else {
+                                warn!("Observed OHLCV with negative close price");
                             }
                         }
                         Ok(_) => (),
