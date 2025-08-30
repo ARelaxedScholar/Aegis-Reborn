@@ -9,9 +9,13 @@ use std::path::Path;
 pub struct MetricsConfig {
     /// Starting amount of money
     pub initial_cash: f64,
+<<<<<<< HEAD
     /// Number of candles in a year (for a daily chart would be 252.0)
     pub annualization_rate: f64,
     /// Expected rate of return for a risk-free investment
+=======
+    pub annualization_rate: f64,
+>>>>>>> refs/remotes/origin/main
     pub risk_free_rate: f64,
     /// Number of bootstrap runs to do for the final gauntlet (at this point evolution is over)
     pub bootstrap_runs: usize,
