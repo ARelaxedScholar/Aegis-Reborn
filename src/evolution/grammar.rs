@@ -176,7 +176,7 @@ mod tests {
         let mut file = File::create(&file_path).unwrap();
         write!(file, "<start> ::= <A> | <B>\n<A> ::= 'a'\n<B> ::= 'b'").unwrap();
         let result = Grammar::new(&file_path);
-assert!(result.is_ok(), "Error is {:?}", result.unwrap_err());
+        assert!(result.is_ok(), "Error is {:?}", result.unwrap_err());
     }
 
     #[test]
