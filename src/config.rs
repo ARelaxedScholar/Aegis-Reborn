@@ -9,13 +9,9 @@ use std::path::Path;
 pub struct MetricsConfig {
     /// Starting amount of money
     pub initial_cash: f64,
-<<<<<<< HEAD
     /// Number of candles in a year (for a daily chart would be 252.0)
     pub annualization_rate: f64,
     /// Expected rate of return for a risk-free investment
-=======
-    pub annualization_rate: f64,
->>>>>>> refs/remotes/origin/main
     pub risk_free_rate: f64,
     /// Number of bootstrap runs to do for the final gauntlet (at this point evolution is over)
     pub bootstrap_runs: usize,
@@ -88,23 +84,23 @@ impl Config {
     ///
     /// # Arguments
     /// * `path` - Reference to a `Path` struct representing the path to the the user-specifed
-    /// config 
+    /// config
     ///
     /// # Returns
-    /// * `Result<Self, std::error::Error>` 
+    /// * `Result<Self, std::error::Error>`
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let content = fs::read_to_string(path)?;
         let config: Config = toml::from_str(&content)?;
         Ok(config)
     }
 
-    /// Validates the config 
+    /// Validates the config
     ///
     /// # Arguments
-    /// * `&self` 
+    /// * `&self`
     ///
     /// # Returns
-    /// * `Result<Self, std::error::Error>` 
+    /// * `Result<Self, std::error::Error>`
     pub fn validate(&self) -> Result<(), String> {
         if !(0.0..=1.0).contains(&self.data.hold_out_split) {
             return Err("data.hold_out_split must be between 0.0 and 1.0".to_string());

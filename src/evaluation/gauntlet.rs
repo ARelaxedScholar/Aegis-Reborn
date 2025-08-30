@@ -37,8 +37,12 @@ impl Error for GauntletError {}
 /// Comprehensive report for a single champion's gauntlet performance
 #[derive(Debug, Serialize)]
 pub struct GauntletReport {
+    /// Ordinal rank of position within council (lower is better)
     pub rank: usize,
+    /// Original fitness, the fitness which made it qualified to enter the council (fitness before
+    /// final gauntlet)
     pub original_fitness: f64,
+    /// The performance on the hold-out set
     pub hold_out_result: BacktestResult,
     /// Market-path bootstrap (synthetic price timelines)
     pub market_bootstrap_stats: BootstrapStats,
@@ -48,7 +52,7 @@ pub struct GauntletReport {
 
 #[derive(Debug, Serialize)]
 pub struct BootstrapStats {
-    // Equity-based stats
+    /// Equity-based stats
     pub avg_equity: f64,
     pub median_equity: f64,
     pub worst_equity: f64,
@@ -57,15 +61,17 @@ pub struct BootstrapStats {
     pub confidence_interval_95: (f64, f64),
     pub volatility: f64,
 
-    // Distribution stats across bootstrap runs
+    /// Sharpe Ratio
     pub avg_sharpe: f64,
     pub median_sharpe: f64,
     pub sharpe_ci_95: (f64, f64),
 
+    /// Compound Annual Growth Rate
     pub avg_cagr: f64,
     pub median_cagr: f64,
     pub cagr_ci_95: (f64, f64),
 
+    /// Drawdown
     pub avg_max_dd: f64,
     pub median_max_dd: f64,
     pub max_dd_ci_95: (f64, f64),
@@ -74,8 +80,11 @@ pub struct BootstrapStats {
 /// Block bootstrap configuration
 #[derive(Debug)]
 struct BootstrapConfig {
+    /// Number of candles for one block
     block_size: usize,
+    /// What percentage of overlap do we want for the sliding window of blocks
     overlap_ratio: f64,
+    /// Minimum number of blocks we require for bootstrapping
     min_blocks_required: usize,
 }
 
@@ -90,6 +99,19 @@ impl Default for BootstrapConfig {
 }
 
 /// Production-ready gauntlet runner with comprehensive validation and error handling
+///
+///
+/// # Arguments
+/// * `council_of_champions` - Reference to a container of the top `Individual` for this run
+/// * `training_data` - Data meant for the evolution of the top strategies
+/// * `hold_out_data` - Data meant for the final evaluation of the champions
+/// * `grammar` - Reference to the `Grammar` to be used for the evolutionary process
+/// * `ga_config` - Reference to the `GaConfig` that was used for defining the evolutionary logic
+/// * `metrics_config` - Reference to the `MetricsConfig` which defines the parameters which are
+/// not crucial for the evolutionary process, but are still important for tracking
+///
+/// # Returns
+/// `Result<Vec<GauntletReport>, GauntletError>`
 pub fn run_gauntlet(
     council_of_champions: &[Individual],
     training_data: &[OHLCV],
@@ -154,7 +176,7 @@ pub fn run_gauntlet(
         ));
     }
 
-    // Sort reports by hold-out performance (or other criteria)
+    // Sort reports by hold-out performance
     reports.sort_by(|a, b| {
         b.hold_out_result
             .final_equity
@@ -167,6 +189,17 @@ pub fn run_gauntlet(
 }
 
 /// Validates inputs to the gauntlet
+///
+///
+/// # Arguments
+/// * `champions` - Reference to a container of the top `Individual` for this run
+/// * `training_data` - Data meant for the evolution of the top strategies
+/// * `hold_out_data` - Data meant for the final evaluation of the champions
+/// * `metrics_config` - Reference to the `MetricsConfig` which defines the parameters which are
+/// not crucial for the evolutionary process, but are still important for tracking
+///
+/// # Returns
+/// `Result<()>, GauntletError>`
 fn validate_gauntlet_inputs(
     champions: &[Individual],
     training_data: &[OHLCV],
@@ -228,6 +261,12 @@ fn validate_gauntlet_inputs(
 }
 
 /// Validates individual OHLCV candle
+///
+/// # Arguments
+/// * `candle` - Reference to a candle
+///
+/// # Returns
+/// `bool`
 fn is_valid_candle(candle: &OHLCV) -> bool {
     if !(candle.open.is_finite()
         && candle.high.is_finite()
@@ -252,6 +291,19 @@ fn is_valid_candle(candle: &OHLCV) -> bool {
 }
 
 /// Processes a single champion through the gauntlet
+///
+/// # Arguments
+/// * `champion` - Reference to an outstanding `Individual` from the council
+/// * `rank` - Rank of that situation among the `population_size` other individuals (lower is
+/// better)
+/// * `training_data` - Data meant for the evolution of the top strategies
+/// * `hold_out_data` - Data meant for the final evaluation of the champions
+/// * `mapper` - Reference to the mapper which mapped the `Op` to a `Grammar`
+/// * `metrics_config` - Reference to the `MetricsConfig` which defines the parameters which are
+/// * `bootstrap_config` - Reference to the `BootstrapConfig` for the
+///
+/// # Returns
+/// `Result<GauntletReport, GauntletError>`
 fn process_champion(
     champion: &Individual,
     rank: usize,
@@ -318,6 +370,16 @@ fn process_champion(
 /// Enhanced market-path bootstrap: resample asset log-returns, rebuild OHLCV realistically,
 /// rerun the strategy on each synthetic path, and summarize by terminal equity.
 /// This answers: "Would the rules work on alternative-but-similar price paths?"
+///
+/// # Arguments
+/// better)
+/// * `training_data` - Data meant for the evolution of the top strategies
+/// * `strategy` - Data meant for the final evaluation of the champions
+/// * `metrics_config` - Reference to the `MetricsConfig` which defines the parameters which are
+/// * `config` - Reference to the `BootstrapConfig` for the
+///
+/// # Returns
+/// `Result<BootstrapStats, String>`
 fn run_market_bootstrap(
     training_data: &[OHLCV],
     strategy: &crate::strategy::Strategy,
@@ -392,6 +454,14 @@ struct IntrabarDelta {
     down: f64, // close - low
 }
 
+/// Function to create intrabar-delta samples to allow realistic samples
+/// for the evaluation runs
+///
+/// # Arguments
+/// * `data` - Reference to a container of `OHLCV` candles
+///
+/// # Returns
+/// `Result<Vec<IntrabarDelta>>, String>`
 fn build_intrabar_samples(data: &[OHLCV]) -> Result<Vec<IntrabarDelta>, String> {
     if data.len() < 10 {
         return Err("Not enough data for intrabar sampling".to_string());
@@ -412,6 +482,14 @@ fn build_intrabar_samples(data: &[OHLCV]) -> Result<Vec<IntrabarDelta>, String> 
 
 /// Generate synthetic candles from resampled log-returns and sampled intrabar deltas.
 /// Avoids multiplicative volatility drift and respects candle validity constraints.
+///
+/// # Arguments
+/// * `original_data` - Reference to the original container of `OHLCV` candles
+/// * `log_returns` - Reference to the log returns
+/// * `intrabar` - The `IntrabarDelta` samples
+/// * `rng` - The `rand::rng` object to do samples
+/// # Returns
+/// `Result<Vec<OHLCV>>, String>`
 fn generate_synthetic_candles_from_samples(
     original_data: &[OHLCV],
     log_returns: &[f64],
@@ -466,9 +544,14 @@ fn generate_synthetic_candles_from_samples(
     Ok(out)
 }
 
-/// Try to extract per-period strategy returns from the backtest result.
-/// Prefers explicit returns; falls back to equity curve diffs.
+/// Extracts per-period strategy returns from the backtest result using equity curve diffs.
 /// Returns *net* returns (e.g., +0.01 = +1%).
+///
+/// # Arguments
+/// * `result` - The `BacktestResult` to use (in this module, from the Hold-Out set)
+///
+/// # Returns
+/// `Result<Vec<f64>, String>`
 fn extract_strategy_returns(result: &BacktestResult) -> Result<Vec<f64>, String> {
     let eq = result.equity_curve.as_slice();
     if eq.len() >= 2 && eq.iter().all(|x| x.is_finite()) {
@@ -488,6 +571,16 @@ fn extract_strategy_returns(result: &BacktestResult) -> Result<Vec<f64>, String>
 
 /// Block-bootstrap the *strategy's* realized return stream.
 /// This answers: "How sensitive are my metrics to sequencing noise in the observed PnL?"
+///
+/// # Arguments
+/// * `start_equity` - Equity at the start of the run
+/// * `strategy_returns` - The returns that this strategy showed on the Hold-out set
+/// * `metrics_config` - Reference to the `MetricsConfig` defining the parameters to use for our
+/// metrics
+/// * `config` - Reference to the `BootstrapConfig` defining the number of bootstrap runs, etc.
+///
+/// # Returns
+/// `Result<Vec<f64>, String>`
 fn run_pnl_bootstrap(
     start_equity: f64,
     strategy_returns: &[f64],
@@ -564,6 +657,14 @@ fn run_pnl_bootstrap(
     calculate_bootstrap_statistics(&results, metrics_config.initial_cash)
 }
 
+/// Creates the overlapping blocks used in the Block-Bootstrapping process
+///
+/// # Arguments
+/// * `series` - A slice to a container of a `Copy` type T  
+/// * `config` - Reference to the `BootstrapConfig` defining the number of bootstrap runs, etc.
+///
+/// # Returns
+/// `Result<Vec<f64>, String>`
 fn create_overlapping_blocks<T: Copy>(
     series: &[T],
     config: &BootstrapConfig,
@@ -577,6 +678,11 @@ fn create_overlapping_blocks<T: Copy>(
     }
     let step_size = ((config.block_size as f64) * (1.0 - config.overlap_ratio)).ceil() as usize;
     let step_size = step_size.max(1);
+    if step_size == 1 {
+        warn!(
+            "Block bootstrapping will proceed with step_size of 1. statistical inference may be unreliable."
+        );
+    }
     let mut blocks = Vec::new();
     let mut start = 0;
     while start + config.block_size <= series.len() {
@@ -591,7 +697,13 @@ fn create_overlapping_blocks<T: Copy>(
     Ok(blocks)
 }
 
-/// Calculate log returns with proper error handling
+/// Calculate log returns
+///
+/// # Arguments
+/// * `data` - A slice containing the `OHLCV` data to convert to log-returns
+///
+/// # Returns
+/// `Result<Vec<f64>, String>`
 fn calculate_log_returns(data: &[OHLCV]) -> Result<Vec<f64>, String> {
     if data.len() < 2 {
         return Err("Need at least 2 data points for returns".to_string());
@@ -620,6 +732,14 @@ fn calculate_log_returns(data: &[OHLCV]) -> Result<Vec<f64>, String> {
 }
 
 /// Resample blocks to create synthetic return series
+///
+/// # Arguments
+/// * `blocks` - A slice containing the blocks to resample (i.e. return blocks)
+/// * `target_length` - Number of blocks to sample
+/// * `rng` - The `rand::rng` instance to sample with
+///
+/// # Returns
+/// `Result<Vec<f64>, String>`
 fn resample_blocks(
     blocks: &[Vec<f64>],
     target_length: usize,
@@ -646,6 +766,14 @@ fn resample_blocks(
 }
 
 /// Calculate comprehensive bootstrap statistics
+///
+/// # Arguments
+/// * `results` - Slice of the `BacktestResult` for a given strategy (obtained from Bootstrap)
+/// * `initial_cash` - The initial cash amount... (I think you didn't need me commenting this)
+///
+/// # Returns
+/// `Result<BootstrapStats, String>`, `BootstrapStats` is a summary of the performance of a
+/// strategy
 fn calculate_bootstrap_statistics(
     results: &[BacktestResult],
     initial_cash: f64,
@@ -758,6 +886,15 @@ fn calculate_bootstrap_statistics(
     })
 }
 
+/// Prints the results of the gauntlet to the console
+///
+/// # Arguments
+/// * `reports` - Slice of the `GauntletReport` for each strategy (frauds will hopefully be
+/// exposed)
+/// * `metrics_config` - The `MetricsConfig` for the tracking parameters 
+///
+/// # Returns
+/// Nothing. Simply prints to the console
 fn print_gauntlet_results(reports: &[GauntletReport], metrics_config: &MetricsConfig) {
     println!(
         "\n\n╔══════════════════════════════════════════════════════════════════════════════════╗"
@@ -868,13 +1005,27 @@ fn print_gauntlet_results(reports: &[GauntletReport], metrics_config: &MetricsCo
     }
 }
 
+/// Serializable template for the strategies
+/// of the council to simplify writing to file
 #[derive(Debug, Serialize)]
 struct GauntletFile<'a> {
+    /// Tracks version of schema 
     schema_version: &'static str,
+    /// Timestamp for when the file was generated
     generated_at: u64,
+    /// The `GauntletReport`s for each `Individual` in the council
     reports: &'a [GauntletReport],
 }
 
+/// Writes the reports to a json file 
+///
+/// # Arguments
+/// * `reports` - Slice of the `GauntletReport` for each strategy (frauds will hopefully be
+/// exposed)
+///
+/// # Returns
+/// Result<(), std::io::Error>, if everything goes well return the unit, else return the error
+/// which occurred at file creation
 pub fn write_reports_to_json(reports: &[GauntletReport]) -> Result<(), std::io::Error> {
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
