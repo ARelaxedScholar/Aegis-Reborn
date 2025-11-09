@@ -1,7 +1,7 @@
 use crate::config::{GaConfig, MetricsConfig};
 use crate::data::OHLCV;
 use crate::evaluation::backtester::{BacktestResult, Backtester};
-use crate::evolution::{Individual, grammar::Grammar, mapper::GrammarBasedMapper};
+use crate::evolution::{grammar::Grammar, mapper::GrammarBasedMapper, Individual};
 use log::{debug, error, info, warn};
 use rand::prelude::IndexedRandom;
 use serde::Serialize;
@@ -891,7 +891,7 @@ fn calculate_bootstrap_statistics(
 /// # Arguments
 /// * `reports` - Slice of the `GauntletReport` for each strategy (frauds will hopefully be
 /// exposed)
-/// * `metrics_config` - The `MetricsConfig` for the tracking parameters 
+/// * `metrics_config` - The `MetricsConfig` for the tracking parameters
 ///
 /// # Returns
 /// Nothing. Simply prints to the console
@@ -899,9 +899,7 @@ fn print_gauntlet_results(reports: &[GauntletReport], metrics_config: &MetricsCo
     println!(
         "\n\n╔══════════════════════════════════════════════════════════════════════════════════╗"
     );
-    println!(
-        "║                           🏛️  THE GAUNTLET RESULTS  🏛️                            ║"
-    );
+    println!("║                           🏛️  THE GAUNTLET RESULTS  🏛️                            ║");
     println!(
         "╚══════════════════════════════════════════════════════════════════════════════════╝"
     );
@@ -1009,7 +1007,7 @@ fn print_gauntlet_results(reports: &[GauntletReport], metrics_config: &MetricsCo
 /// of the council to simplify writing to file
 #[derive(Debug, Serialize)]
 struct GauntletFile<'a> {
-    /// Tracks version of schema 
+    /// Tracks version of schema
     schema_version: &'static str,
     /// Timestamp for when the file was generated
     generated_at: u64,
@@ -1017,7 +1015,7 @@ struct GauntletFile<'a> {
     reports: &'a [GauntletReport],
 }
 
-/// Writes the reports to a json file 
+/// Writes the reports to a json file
 ///
 /// # Arguments
 /// * `reports` - Slice of the `GauntletReport` for each strategy (frauds will hopefully be
@@ -1209,11 +1207,9 @@ mod tests {
 
         let result = create_overlapping_blocks(&returns, &config);
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .contains("Data too small for block size")
-        );
+        assert!(result
+            .unwrap_err()
+            .contains("Data too small for block size"));
     }
 
     #[test]
@@ -1497,11 +1493,9 @@ mod tests {
         let result = build_intrabar_samples(&data);
 
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .contains("Not enough data for intrabar sampling")
-        );
+        assert!(result
+            .unwrap_err()
+            .contains("Not enough data for intrabar sampling"));
     }
 
     // Block Resampling Tests
@@ -1856,11 +1850,9 @@ mod tests {
 
         let result = extract_strategy_returns(&backtest_result);
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .contains("Cannot calculate return: equity value is zero")
-        );
+        assert!(result
+            .unwrap_err()
+            .contains("Cannot calculate return: equity value is zero"));
     }
 
     #[test]

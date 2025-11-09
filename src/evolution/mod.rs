@@ -15,20 +15,6 @@ use std::sync::atomic::Ordering;
 /// Penalty to assign when a strategy is so egregiously bad it must be excised from the gene pool
 const INFINITE_PENALTY: f64 = f64::NEG_INFINITY;
 
-/// Simple wrapper to make raw pointers Send + Sync (e.g. relevant for `evaluate_population`)
-pub struct SendSyncPtr<T>(*mut T);
-unsafe impl<T> Send for SendSyncPtr<T> {}
-unsafe impl<T> Sync for SendSyncPtr<T> {}
-
-impl<T> SendSyncPtr<T> {
-    fn new(ptr: *mut T) -> Self {
-        SendSyncPtr(ptr)
-    }
-
-    unsafe fn get_mut(&self, index: usize) -> &mut T {
-        &mut *self.0.add(index)
-    }
-}
 /// Alias within crate for genome representation
 pub type Genome = Vec<u32>;
 
@@ -242,68 +228,50 @@ impl<'a> EvolutionEngine<'a> {
     /// This method mutably borrows the `EvolutionEngine` instance,
     /// modifying its `population` field. Each generation, it is called to update the `fitness`
     /// scores of the current generation. It itself delegates to the `calculate_fitness` function.
-    ///
-    /// SAFETY INVARIANTS:
-    /// - `indices` must contain only unique, in-bounds indices into `self.population`.
-    /// - `self.population` must not be resized or reallocated during this operation.
-    /// - `calculate_fitness` must not mutate `self` or cause side effects.
-    /// If these invariants are violated, undefined behavior may occur.
-    /// Any changes to index collection or population structure must be carefully audited!
-    /// # Arguments
-    /// * `&mut self` - The EvolutionEngine for which you need to initialize the population
-    ///
-    /// # Returns
-    /// `PopulationEvaluationReport`
     pub fn evaluate_population(&mut self) -> PopulationEvaluationReport {
-        let indices: Vec<usize> = self
+        // Collect indices and genomes together
+        let work_items: Vec<(usize, Genome)> = self
             .population
             .iter()
             .enumerate()
-            .filter_map(|(i, ind)| (ind.fitness == f64::NEG_INFINITY).then_some(i))
+            .filter_map(|(i, ind)| {
+                (ind.fitness == f64::NEG_INFINITY).then(|| (i, ind.genome.clone()))
+            })
             .collect();
 
-        if indices.is_empty() {
+        if work_items.is_empty() {
             return PopulationEvaluationReport {
                 mapping_failures: 0,
                 vm_errors: 0,
             };
         }
 
-        #[cfg(debug_assertions)]
-        {
-            let mut sorted_indices = indices.clone();
-            sorted_indices.sort_unstable();
-            let original_len = sorted_indices.len();
-            sorted_indices.dedup();
-            assert_eq!(
-                original_len,
-                sorted_indices.len(),
-                "Indices for parallel evaluation must be unique!"
-            );
-        }
+        // Evaluate in parallel without holding any reference to self.population
+        let results: Vec<(usize, FitnessEvaluationReport)> = work_items
+            .par_iter()
+            .map(|(i, genome)| {
+                let report = self.calculate_fitness(genome);
+                (*i, report)
+            })
+            .collect();
 
-        let population_ptr = SendSyncPtr::new(self.population.as_mut_ptr());
-        let mapping_failures = AtomicUsize::new(0);
-        let vm_errors = AtomicUsize::new(0);
+        // Apply results sequentially (no unsafe needed)
+        let mut mapping_failures = 0;
+        let mut vm_errors = 0;
 
-        indices.par_iter().for_each(|&i| unsafe {
-            let individual = population_ptr.get_mut(i);
-            let genome = individual.genome.clone();
-            let report = self.calculate_fitness(&genome);
-
-            individual.fitness = report.fitness;
-
+        for (i, report) in results {
+            self.population[i].fitness = report.fitness;
             if report.mapping_failure_occurred {
-                mapping_failures.fetch_add(1, Ordering::Relaxed);
+                mapping_failures += 1;
             }
             if report.vm_error_occurred {
-                vm_errors.fetch_add(1, Ordering::Relaxed);
+                vm_errors += 1;
             }
-        });
+        }
 
         PopulationEvaluationReport {
-            mapping_failures: mapping_failures.load(Ordering::Relaxed),
-            vm_errors: vm_errors.load(Ordering::Relaxed),
+            mapping_failures,
+            vm_errors,
         }
     }
 

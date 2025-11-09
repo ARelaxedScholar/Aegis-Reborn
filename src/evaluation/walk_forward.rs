@@ -1,7 +1,7 @@
 use crate::data::OHLCV;
 use crate::evaluation::backtester::{
-    BacktestResult, Backtester, calculate_annualized_return, calculate_max_drawdown,
-    calculate_sharpe_ratio,
+    calculate_annualized_return, calculate_max_drawdown, calculate_sharpe_ratio, BacktestResult,
+    Backtester,
 };
 use crate::strategy::Strategy;
 use log::{debug, warn};
@@ -561,7 +561,8 @@ mod tests {
         assert!(WalkForwardValidator::new(100, 20, f64::NAN, 10000.0, 252.0).is_err());
         assert!(WalkForwardValidator::new(100, 20, f64::INFINITY, 10000.0, 252.0).is_err());
         assert!(WalkForwardValidator::new(100, 20, 0.05, -1000.0, 252.0).is_err()); // Negative initial cash
-        assert!(WalkForwardValidator::new(100, 20, 0.05, 10000.0, -252.0).is_err()); // Negative annualization rate
+        assert!(WalkForwardValidator::new(100, 20, 0.05, 10000.0, -252.0).is_err());
+        // Negative annualization rate
     }
 
     #[test]
@@ -631,11 +632,9 @@ mod tests {
         // Invalid volume data (negative)
         let mut invalid_volume_candles = valid_candles.clone();
         invalid_volume_candles[0].volume = -100.0;
-        assert!(
-            validator
-                .validate_input_data(&invalid_volume_candles)
-                .is_err()
-        );
+        assert!(validator
+            .validate_input_data(&invalid_volume_candles)
+            .is_err());
     }
 
     #[test]

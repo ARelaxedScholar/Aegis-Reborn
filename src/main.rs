@@ -1,9 +1,9 @@
 use aegis_reborn::config::{Config, DataConfig};
-use aegis_reborn::data::{OHLCV, load_csv};
+use aegis_reborn::data::{load_csv, OHLCV};
 use aegis_reborn::evaluation::gauntlet::{run_gauntlet, write_reports_to_json};
-use aegis_reborn::evolution::EvolutionEngine;
 use aegis_reborn::evolution::grammar::Grammar;
 use aegis_reborn::evolution::mapper::GrammarBasedMapper;
+use aegis_reborn::evolution::EvolutionEngine;
 use std::path::Path;
 use std::process;
 

@@ -1,8 +1,8 @@
 use aegis_reborn::config::Config;
-use aegis_reborn::data::{OHLCV, load_csv};
-use aegis_reborn::evolution::EvolutionEngine;
+use aegis_reborn::data::{load_csv, OHLCV};
 use aegis_reborn::evolution::grammar::Grammar;
-use criterion::{Criterion, criterion_group, criterion_main};
+use aegis_reborn::evolution::EvolutionEngine;
+use criterion::{criterion_group, criterion_main, Criterion};
 use std::path::Path;
 use std::time::Duration;
 

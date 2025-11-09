@@ -1,5 +1,5 @@
-use crate::evolution::Genome;
 use crate::evolution::grammar::Grammar;
+use crate::evolution::Genome;
 use crate::strategy::Strategy;
 use crate::vm::op::{DynamicConstant, IndicatorType, Op, PriceType};
 use std::collections::HashMap;
