@@ -4,7 +4,7 @@
 grammar_file = "grammar.bnf"
 
 [data]
-file_path = "src/data/BTC-USD.csv"
+file_path = "data/BTC-USD.csv"
 hold_out_split = 0.3 # 30% of data is reserved for the final, unbiased test
 
 [ga]

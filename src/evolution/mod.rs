@@ -10,8 +10,6 @@ use log::{debug, error, info, warn};
 use rand::prelude::*;
 use rand::rng;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
 /// Penalty to assign when a strategy is so egregiously bad it must be excised from the gene pool
 const INFINITE_PENALTY: f64 = f64::NEG_INFINITY;
 

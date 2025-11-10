@@ -6,6 +6,8 @@ tags
 # Ignore all files ending with .log
 *.log
 
+config.toml
+
 # Ignore all files ending with .txt
 *.txt
 
