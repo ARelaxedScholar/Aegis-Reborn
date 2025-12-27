@@ -1,3 +1,4 @@
+use log::warn;
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
@@ -15,6 +16,9 @@ pub struct MetricsConfig {
     pub risk_free_rate: f64,
     /// Number of bootstrap runs to do for the final gauntlet (at this point evolution is over)
     pub bootstrap_runs: usize,
+    /// Transaction cost percentage per side (e.g., 0.001 for 0.1% per trade)
+    #[serde(default)]
+    pub transaction_cost_pct: f64,
 }
 
 /// This struct encapsulates the logic related to taking CSV data from the user and preparing it
@@ -57,8 +61,6 @@ pub struct GaConfig {
     /// to prevent solutions with near zero volatility (very likely a fluke) to dominate the pool
     /// (and remove the kink at 0 entirely)
     pub alpha: f64,
-    /// Number of candles in the scenarios used during the training (evolution) period
-    pub training_window_size: usize,
     /// Number of candles in the scenarios used during the testing (final gauntlet) period
     pub test_window_size: usize,
     /// Number of top solutions which are kept for further evaluation in the final gauntlet
@@ -117,9 +119,9 @@ impl Config {
         if self.ga.tournament_size < 2 {
             return Err("ga.tournament_size must be at least 2".to_string());
         }
-        if self.ga.training_window_size < 2 || self.ga.test_window_size < 2 {
+        if self.ga.test_window_size < 2 {
             return Err(
-                "The training and test window sizes must be at least 2 for meaningful analysis"
+                "The test window size must be at least 2 for meaningful analysis"
                     .to_string(),
             );
         }
@@ -137,6 +139,18 @@ impl Config {
         }
         if self.metrics.annualization_rate <= 0.0 {
             return Err("annualization_rate must be positive".to_string());
+        }
+        if !self.metrics.transaction_cost_pct.is_finite() {
+            return Err("transaction_cost_pct must be a finite number".to_string());
+        }
+        if self.metrics.transaction_cost_pct < 0.0 {
+            return Err("transaction_cost_pct must be non-negative".to_string());
+        }
+        if self.metrics.transaction_cost_pct > 1.0 {
+            return Err("transaction_cost_pct must be <= 1.0 (100%)".to_string());
+        }
+        if self.metrics.transaction_cost_pct > 0.5 {
+            warn!("transaction_cost_pct is unusually high (>50%). This may be intentional for stress testing.");
         }
         Ok(())
     }

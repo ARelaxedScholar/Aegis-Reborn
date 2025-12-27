@@ -20,7 +20,7 @@ fn setup_engine() -> EvolutionEngine<'static> {
     ));
 
     // Create a smaller slice for the benchmark to keep it fast
-    let data_slice = &all_candles[0..config.ga.training_window_size + 100];
+    let data_slice = &all_candles[0..config.ga.test_window_size * 25];
 
     let mut engine = EvolutionEngine::new(&config.ga, &config.metrics, grammar, data_slice);
     engine.initialize_population();

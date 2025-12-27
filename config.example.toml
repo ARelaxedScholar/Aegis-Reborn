@@ -22,7 +22,6 @@ alpha = 0.01 # Smoothing factor for Calmar ratio
 size_of_council = 10
 
 # Walk-Forward Parameters (in days)
-training_window_size = 504 # ~2 years of trading days
 test_window_size = 21      # ~1 month of trading days
 
 [metrics]
@@ -30,3 +29,4 @@ initial_cash = 10_000.0
 annualization_rate = 252.0 # Assuming 252 trading days in a year
 risk_free_rate = 0.02 # e.g., 2% annualized risk-free rate
 bootstrap_runs = 2_000
+transaction_cost_pct = 0.001 # 0.1% per side transaction cost (must be ≤ 1.0, >0.5 triggers warning)

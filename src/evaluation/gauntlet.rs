@@ -326,6 +326,7 @@ fn process_champion(
         metrics_config.risk_free_rate,
         metrics_config.initial_cash,
         metrics_config.annualization_rate,
+        metrics_config.transaction_cost_pct,
     );
 
     if !hold_out_result.final_equity.is_finite() {
@@ -367,12 +368,11 @@ fn process_champion(
     })
 }
 
-/// Enhanced market-path bootstrap: resample asset log-returns, rebuild OHLCV realistically,
+/// Market-path bootstrap: resample asset log-returns, rebuild OHLCV realistically,
 /// rerun the strategy on each synthetic path, and summarize by terminal equity.
 /// This answers: "Would the rules work on alternative-but-similar price paths?"
 ///
 /// # Arguments
-/// better)
 /// * `training_data` - Data meant for the evolution of the top strategies
 /// * `strategy` - Data meant for the final evaluation of the champions
 /// * `metrics_config` - Reference to the `MetricsConfig` which defines the parameters which are
@@ -428,6 +428,7 @@ fn run_market_bootstrap(
             metrics_config.risk_free_rate,
             metrics_config.initial_cash,
             metrics_config.annualization_rate,
+            metrics_config.transaction_cost_pct,
         );
         if result.final_equity.is_finite() && result.final_equity > 0.0 {
             results.push(result);
@@ -660,7 +661,7 @@ fn run_pnl_bootstrap(
 /// Creates the overlapping blocks used in the Block-Bootstrapping process
 ///
 /// # Arguments
-/// * `series` - A slice to a container of a `Copy` type T  
+/// * `series` - A slice to a container of a `Copy` type T
 /// * `config` - Reference to the `BootstrapConfig` defining the number of bootstrap runs, etc.
 ///
 /// # Returns
@@ -1114,6 +1115,7 @@ mod tests {
             risk_free_rate: 0.02,
             initial_cash: 10000.0,
             annualization_rate: 252.0,
+            transaction_cost_pct: 0.0,
         };
 
         (ga_config, metrics_config)
@@ -1381,6 +1383,7 @@ mod tests {
             risk_free_rate: 0.02,
             initial_cash: 10000.0,
             annualization_rate: 252.0,
+            transaction_cost_pct: 0.0,
         };
 
         let result =
@@ -1402,6 +1405,7 @@ mod tests {
             risk_free_rate: f64::NAN, // Invalid
             initial_cash: 10000.0,
             annualization_rate: 252.0,
+            transaction_cost_pct: 0.0,
         };
 
         let result =

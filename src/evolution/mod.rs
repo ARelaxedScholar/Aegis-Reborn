@@ -306,11 +306,11 @@ impl<'a> EvolutionEngine<'a> {
         }
 
         let validator = match WalkForwardValidator::new(
-            self.config.training_window_size,
             self.config.test_window_size,
             self.metrics_params.risk_free_rate,
             self.metrics_params.initial_cash,
             self.metrics_params.annualization_rate,
+            self.metrics_params.transaction_cost_pct,
         ) {
             Ok(v) => v,
             Err(e) => {
@@ -503,7 +503,6 @@ mod tests {
             parsimony_penalty: 0.01,
             tournament_size: 3,
             test_window_size: 3,
-            training_window_size: 3,
             size_of_council: 2,
         }
     }
@@ -515,6 +514,7 @@ mod tests {
             bootstrap_runs: 100,
             initial_cash: 10_000.0,
             annualization_rate: 252.0,
+            transaction_cost_pct: 0.0,
         }
     }
 

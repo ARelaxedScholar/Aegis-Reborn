@@ -38,10 +38,12 @@ impl Error for WalkForwardError {}
 
 /// Walk-forward validator for backtesting strategies with time-series cross-validation
 ///
-/// This validator splits historical data into multiple training/testing windows,
-/// trains the strategy on each training window, and tests on the subsequent
-/// out-of-sample period. This provides a more robust evaluation than simple
-/// backtesting by simulating realistic trading conditions.
+/// This validator tests a fixed strategy on sequential out-of-sample windows using
+/// walk-forward validation. It splits historical data into multiple training/testing
+/// windows, where each test window follows its training window in time. The same
+/// strategy is tested on each out-of-sample period to measure its robustness over
+/// time. This provides a more robust evaluation than simple backtesting by
+/// simulating how a strategy would perform across different market regimes.
 ///
 /// # Example
 /// ```rust
@@ -59,23 +61,22 @@ impl Error for WalkForwardError {}
 ///          volume: 1000.0,
 ///     } ; 300];
 /// let strategy = Strategy::new(); // in practice, would be handled by the mapper
-/// let validator = WalkForwardValidator::new(252, 21, 0.02, 10_000.0, 252.0).unwrap(); // 1 year train, 1 month test, 2% risk-free rate, 10_000.0$ initial cash, 252.0 annualization rate
+/// let validator = WalkForwardValidator::new(252, 21, 0.02, 10_000.0, 252.0, 0.001).unwrap(); // 1 year train, 1 month test, 2% risk-free rate, 10_000.0$ initial cash, 252.0 annualization rate, 0.1% transaction cost
 /// let result = validator.validate(&candles, &strategy).unwrap();
 /// println!("Annualized Return: {:.2}%", result.annualized_return * 100.0);
 /// ```
 pub struct WalkForwardValidator {
-    training_window_size: usize,
     test_window_size: usize,
     risk_free_rate: f64,
     initial_cash: f64,
     annualization_rate: f64,
+    transaction_cost_pct: f64,
 }
 
 impl WalkForwardValidator {
     /// Creates a new walk-forward validator
     ///
     /// # Arguments
-    /// * `training_window_size` - Number of periods for training (must be > 0)
     /// * `test_window_size` - Number of periods for testing (must be > 0)  
     /// * `risk_free_rate` - Annual risk-free rate for Sharpe ratio calculation (must be finite)
     ///
@@ -86,19 +87,13 @@ impl WalkForwardValidator {
     /// * `InvalidWindowSize` - If window sizes are zero or invalid
     /// * `ValidationFailed` - If risk-free rate is not finite
     pub fn new(
-        training_window_size: usize,
         test_window_size: usize,
         risk_free_rate: f64,
         initial_cash: f64,
         annualization_rate: f64,
+        transaction_cost_pct: f64,
     ) -> Result<Self, WalkForwardError> {
-        // Validate window sizes
-        if training_window_size == 0 {
-            return Err(WalkForwardError::InvalidWindowSize(
-                "Training window size must be greater than zero".to_string(),
-            ));
-        }
-
+        // Validate window size
         if test_window_size == 0 {
             return Err(WalkForwardError::InvalidWindowSize(
                 "Test window size must be greater than zero".to_string(),
@@ -106,9 +101,9 @@ impl WalkForwardValidator {
         }
 
         // Check for potential overflow in window calculations
-        if training_window_size > usize::MAX / 2 || test_window_size > usize::MAX / 2 {
+        if test_window_size > usize::MAX / 2 {
             return Err(WalkForwardError::InvalidWindowSize(
-                "Window sizes are too large and may cause overflow".to_string(),
+                "Test window size is too large and may cause overflow".to_string(),
             ));
         }
 
@@ -130,22 +125,39 @@ impl WalkForwardValidator {
                 "Annualization rate cannot be negative.".to_string(),
             ));
         }
+        if !transaction_cost_pct.is_finite() {
+            return Err(WalkForwardError::ValidationFailed(
+                "transaction_cost_pct must be a finite number".to_string(),
+            ));
+        }
+        if transaction_cost_pct < 0.0 {
+            return Err(WalkForwardError::ValidationFailed(
+                "transaction_cost_pct must be non-negative".to_string(),
+            ));
+        }
+        if transaction_cost_pct > 1.0 {
+            return Err(WalkForwardError::ValidationFailed(
+                "transaction_cost_pct must be <= 1.0 (100%)".to_string(),
+            ));
+        }
 
         debug!(
-            "Created WalkForwardValidator with training_window: {}, test_window: {}, risk_free_rate: {:.4}",
-            training_window_size, test_window_size, risk_free_rate
+            "Created WalkForwardValidator with test_window: {}, risk_free_rate: {:.4}",
+            test_window_size, risk_free_rate
         );
 
         Ok(Self {
-            training_window_size,
             test_window_size,
             risk_free_rate,
             initial_cash,
             annualization_rate,
+            transaction_cost_pct,
         })
     }
 
-    /// Validates a strategy using walk-forward analysis
+    /// Validates a fixed strategy using walk-forward analysis (sequential out-of-sample testing).
+    /// The strategy is not retrained between windows; this measures the robustness of a single
+    /// strategy across different time periods.
     ///
     /// # Arguments
     /// * `candles` - Historical price data (OHLCV)
@@ -173,7 +185,7 @@ impl WalkForwardValidator {
         let mut successful_windows = 0;
 
         // Calculate number of possible windows
-        let min_required_data = self.training_window_size + self.test_window_size;
+        let min_required_data = self.test_window_size;
         let available_data = candles.len();
 
         if available_data < min_required_data {
@@ -183,8 +195,7 @@ impl WalkForwardValidator {
             )));
         }
 
-        let max_possible_windows = (available_data.saturating_sub(self.training_window_size))
-            .saturating_div(self.test_window_size);
+        let max_possible_windows = available_data.saturating_div(self.test_window_size);
 
         if max_possible_windows == 0 {
             return Err(WalkForwardError::InsufficientData(
@@ -199,7 +210,7 @@ impl WalkForwardValidator {
 
         // Execute walk-forward validation
         for window_idx in 0..max_possible_windows {
-            let train_end = window_idx * self.test_window_size + self.training_window_size;
+            let train_end = window_idx * self.test_window_size;
             let test_end = (train_end + self.test_window_size).min(candles.len());
 
             // Ensure we have a valid test window
@@ -327,6 +338,7 @@ impl WalkForwardValidator {
             self.risk_free_rate,
             self.initial_cash,
             self.annualization_rate,
+            self.transaction_cost_pct,
         );
 
         // Validate backtest result
@@ -466,7 +478,7 @@ impl WalkForwardValidator {
         };
 
         let sharpe_ratio =
-            match calculate_sharpe_ratio(&composite_equity_curve, self.risk_free_rate) {
+            match calculate_sharpe_ratio(&composite_equity_curve, self.risk_free_rate, self.annualization_rate) {
                 ratio if ratio.is_finite() => ratio,
                 _ => {
                     warn!("Sharpe ratio calculation produced invalid result, using 0.0");
@@ -491,11 +503,6 @@ impl WalkForwardValidator {
         })
     }
 
-    /// Returns the training window size
-    pub fn training_window_size(&self) -> usize {
-        self.training_window_size
-    }
-
     /// Returns the test window size  
     pub fn test_window_size(&self) -> usize {
         self.test_window_size
@@ -508,29 +515,25 @@ impl WalkForwardValidator {
 
     /// Estimates the number of windows that will be created for given data length
     pub fn estimate_windows(&self, data_length: usize) -> usize {
-        if data_length < self.training_window_size + self.test_window_size {
-            0
-        } else {
-            (data_length.saturating_sub(self.training_window_size)) / self.test_window_size
-        }
+        data_length.saturating_div(self.test_window_size)
     }
 
     /// Validates parameters without creating the validator instance
     pub fn validate_parameters(
-        training_window_size: usize,
         test_window_size: usize,
         risk_free_rate: f64,
         initial_cash: f64,
         annualization_rate: f64,
+        transaction_cost_pct: f64,
         data_length: usize,
     ) -> Result<usize, WalkForwardError> {
         // Create temporary validator to check parameters
         let validator = Self::new(
-            training_window_size,
             test_window_size,
             risk_free_rate,
             initial_cash,
             annualization_rate,
+            transaction_cost_pct,
         )?;
 
         let estimated_windows = validator.estimate_windows(data_length);
@@ -538,7 +541,7 @@ impl WalkForwardValidator {
             return Err(WalkForwardError::InsufficientData(format!(
                 "Parameters would produce 0 windows for {} data points. Need at least {} points.",
                 data_length,
-                training_window_size + test_window_size
+                test_window_size
             )));
         }
 
@@ -553,58 +556,71 @@ mod tests {
     #[test]
     fn test_validator_creation() {
         // Valid parameters
-        assert!(WalkForwardValidator::new(100, 20, 0.05, 10000.0, 252.0).is_ok());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0).is_ok());
 
         // Invalid parameters
-        assert!(WalkForwardValidator::new(0, 20, 0.05, 10000.0, 252.0).is_err());
-        assert!(WalkForwardValidator::new(100, 0, 0.05, 10000.0, 252.0).is_err());
-        assert!(WalkForwardValidator::new(100, 20, f64::NAN, 10000.0, 252.0).is_err());
-        assert!(WalkForwardValidator::new(100, 20, f64::INFINITY, 10000.0, 252.0).is_err());
-        assert!(WalkForwardValidator::new(100, 20, 0.05, -1000.0, 252.0).is_err()); // Negative initial cash
-        assert!(WalkForwardValidator::new(100, 20, 0.05, 10000.0, -252.0).is_err());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0).is_ok());
+        assert!(WalkForwardValidator::new(0, 0.05, 10000.0, 252.0, 0.0).is_err());
+        assert!(WalkForwardValidator::new(20, f64::NAN, 10000.0, 252.0, 0.0).is_err());
+        assert!(WalkForwardValidator::new(20, f64::INFINITY, 10000.0, 252.0, 0.0).is_err());
+        assert!(WalkForwardValidator::new(20, 0.05, -1000.0, 252.0, 0.0).is_err()); // Negative initial cash
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, -252.0, 0.0).is_err());
         // Negative annualization rate
+    }
+
+    #[test]
+    fn test_transaction_cost_validation() {
+        // Valid values (including high costs)
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0).is_ok());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.6).is_ok());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 1.0).is_ok());
+        
+        // Invalid values
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, -0.1).is_err());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, f64::NAN).is_err());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, f64::INFINITY).is_err());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 1.1).is_err());
     }
 
     #[test]
     fn test_parameter_validation() {
         // Valid case
         assert!(
-            WalkForwardValidator::validate_parameters(100, 20, 0.05, 10000.0, 252.0, 200).is_ok()
+            WalkForwardValidator::validate_parameters(20, 0.05, 10000.0, 252.0, 0.0, 200).is_ok()
         );
 
         // Insufficient data
         assert!(
-            WalkForwardValidator::validate_parameters(100, 20, 0.05, 10000.0, 252.0, 100).is_err()
+            WalkForwardValidator::validate_parameters(20, 0.05, 10000.0, 252.0, 0.0, 10).is_err()
         );
 
         // Invalid parameters
         assert!(
-            WalkForwardValidator::validate_parameters(0, 20, 0.05, 10000.0, 252.0, 200).is_err()
+            WalkForwardValidator::validate_parameters(0, 0.05, 10000.0, 252.0, 0.0, 200).is_err()
         );
     }
 
     #[test]
     fn test_window_estimation() {
-        let validator = WalkForwardValidator::new(100, 20, 0.05, 10000.0, 252.0).unwrap();
+        let validator = WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0).unwrap();
 
-        assert_eq!(validator.estimate_windows(200), 5); // (200-100)/20 = 5
-        assert_eq!(validator.estimate_windows(100), 0); // Too small
-        assert_eq!(validator.estimate_windows(119), 0); // Just under minimum
-        assert_eq!(validator.estimate_windows(120), 1); // Exactly minimum
+        assert_eq!(validator.estimate_windows(200), 10); // 200/20 = 10
+        assert_eq!(validator.estimate_windows(100), 5); // 100/20 = 5
+        assert_eq!(validator.estimate_windows(119), 5); // 119/20 = 5
+        assert_eq!(validator.estimate_windows(120), 6); // 120/20 = 6
     }
 
     #[test]
     fn test_getters() {
-        let validator = WalkForwardValidator::new(100, 20, 0.05, 10000.0, 252.0).unwrap();
+        let validator = WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0).unwrap();
 
-        assert_eq!(validator.training_window_size(), 100);
         assert_eq!(validator.test_window_size(), 20);
         assert_eq!(validator.risk_free_rate(), 0.05);
     }
 
     #[test]
     fn test_input_data_validation() {
-        let validator = WalkForwardValidator::new(2, 1, 0.05, 10000.0, 252.0).unwrap();
+        let validator = WalkForwardValidator::new(1, 0.05, 10000.0, 252.0, 0.0).unwrap();
 
         // Empty data
         let empty_candles: Vec<OHLCV> = vec![];
@@ -640,15 +656,13 @@ mod tests {
     #[test]
     fn test_edge_cases() {
         // Test very large window sizes (should fail due to overflow protection)
-        assert!(WalkForwardValidator::new(usize::MAX, 20, 0.05, 10000.0, 252.0).is_err());
-        assert!(WalkForwardValidator::new(100, usize::MAX, 0.05, 10000.0, 252.0).is_err());
+        assert!(WalkForwardValidator::new(usize::MAX, 0.05, 10000.0, 252.0, 0.0).is_err());
 
         // Test boundary values
-        assert!(WalkForwardValidator::new(1, 1, 0.0, 0.0, 0.0).is_ok());
+        assert!(WalkForwardValidator::new(1, 0.0, 0.0, 0.0, 0.0).is_ok());
 
         // Test reasonable financial parameters
-        let validator = WalkForwardValidator::new(252, 21, 0.02, 100000.0, 252.0).unwrap();
-        assert_eq!(validator.training_window_size(), 252); // 1 year training
+        let validator = WalkForwardValidator::new(21, 0.02, 100000.0, 252.0, 0.0).unwrap();
         assert_eq!(validator.test_window_size(), 21); // 1 month testing
         assert_eq!(validator.risk_free_rate(), 0.02); // 2% risk-free rate
     }
