@@ -38,12 +38,11 @@ impl Error for WalkForwardError {}
 
 /// Walk-forward validator for backtesting strategies with time-series cross-validation
 ///
-/// This validator tests a fixed strategy on sequential out-of-sample windows using
-/// walk-forward validation. It splits historical data into multiple training/testing
-/// windows, where each test window follows its training window in time. The same
-/// strategy is tested on each out-of-sample period to measure its robustness over
-/// time. This provides a more robust evaluation than simple backtesting by
-/// simulating how a strategy would perform across different market regimes.
+/// This validator tests a fixed strategy on sequential non-overlapping test windows using
+/// walk-forward validation (no separate training windows). The same strategy is tested on 
+/// each window to measure its robustness over time. This provides a more robust evaluation 
+/// than simple backtesting by simulating how a strategy would perform across different 
+/// market regimes.
 ///
 /// # Example
 /// ```rust
@@ -61,7 +60,7 @@ impl Error for WalkForwardError {}
 ///          volume: 1000.0,
 ///     } ; 300];
 /// let strategy = Strategy::new(); // in practice, would be handled by the mapper
-/// let validator = WalkForwardValidator::new(252, 21, 0.02, 10_000.0, 252.0, 0.001).unwrap(); // 1 year train, 1 month test, 2% risk-free rate, 10_000.0$ initial cash, 252.0 annualization rate, 0.1% transaction cost
+/// let validator = WalkForwardValidator::new(252, 0.02, 10_000.0, 252.0, 0.001).unwrap(); // 252-period test window, 2% risk-free rate, 10_000.0$ initial cash, 252.0 annualization factor, 0.1% transaction cost
 /// let result = validator.validate(&candles, &strategy).unwrap();
 /// println!("Annualized Return: {:.2}%", result.annualized_return * 100.0);
 /// ```
@@ -210,11 +209,11 @@ impl WalkForwardValidator {
 
         // Execute walk-forward validation
         for window_idx in 0..max_possible_windows {
-            let train_end = window_idx * self.test_window_size;
-            let test_end = (train_end + self.test_window_size).min(candles.len());
+            let test_start = window_idx * self.test_window_size;
+            let test_end = (test_start + self.test_window_size).min(candles.len());
 
             // Ensure we have a valid test window
-            if train_end >= test_end || train_end >= candles.len() {
+            if test_start >= test_end || test_start >= candles.len() {
                 debug!(
                     "Stopping at window {} due to insufficient remaining data",
                     window_idx
@@ -222,7 +221,7 @@ impl WalkForwardValidator {
                 break;
             }
 
-            let test_slice = &candles[train_end..test_end];
+            let test_slice = &candles[test_start..test_end];
 
             // Skip if test slice is too small to be meaningful
             if test_slice.len() < MIN_DATA_POINTS {
