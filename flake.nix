@@ -1,5 +1,5 @@
 {
-  description = "A flake.nix to allow easy development with the Aegis-Reborn for Nix afficionados.";
+  description = "A flake.nix to allow easy development with the Golden Aegis for Nix afficionados.";
   inputs = {
     cargo2nix.url = "github:cargo2nix/cargo2nix/release-0.12";
     flake-utils.follows = "cargo2nix/flake-utils";
@@ -22,15 +22,15 @@
       in rec {
         # This section defines the "finished product"
         packages = {
-          aegis-reborn = (rustPkgs.workspace.aegis-reborn {});
-          default = packages.aegis-reborn;
+          golden-aegis = (rustPkgs.workspace.golden-aegis {});
+          default = packages.golden-aegis;
         };
 
         # This section defines the "developer workshop"
         devShells.default = pkgs.mkShell {
           # Pulls in all build dependencies (rustc, cargo)
-          # from 'aegis-reborn' package.
-          inputsFrom = [ packages.aegis-reborn ];
+          # from 'golden-aegis' package.
+          inputsFrom = [ packages.golden-aegis ];
 
           nativeBuildInputs = [
             pkgs.rust-analyzer

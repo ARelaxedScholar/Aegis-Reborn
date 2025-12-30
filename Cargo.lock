@@ -9,25 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
-name = "aegis-reborn"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "criterion",
- "env_logger",
- "log",
- "polars",
- "rand 0.9.2",
- "rayon",
- "serde",
- "serde_json",
- "ta",
- "tempfile",
- "thiserror",
- "toml",
-]
-
-[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -877,6 +858,25 @@ name = "glob"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
+
+[[package]]
+name = "golden-aegis"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "criterion",
+ "env_logger",
+ "log",
+ "polars",
+ "rand 0.9.2",
+ "rayon",
+ "serde",
+ "serde_json",
+ "ta",
+ "tempfile",
+ "thiserror",
+ "toml",
+]
 
 [[package]]
 name = "h2"

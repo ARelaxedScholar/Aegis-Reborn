@@ -4,7 +4,7 @@
 args@{
   release ? true,
   rootFeatures ? [
-    "aegis-reborn/default"
+    "golden-aegis/default"
   ],
   rustPackages,
   buildRustPackages,
@@ -25,7 +25,7 @@ args@{
   cargoConfig ? {},
 }:
 let
-  nixifiedLockHash = "d7afa47cfb8fdf55aa1487b55c9d305b318e524a31083216464db468d15bea9c";
+  nixifiedLockHash = "aeef7b91d34aec6654cbc05103240e6696ac078ac4baf605745b7f869ea3036b";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -53,7 +53,7 @@ in
 {
   cargo2nixVersion = "0.12.0";
   workspace = {
-    aegis-reborn = rustPackages.unknown.aegis-reborn."0.1.0";
+    golden-aegis = rustPackages.unknown.golden-aegis."0.1.0";
   };
   "registry+https://github.com/rust-lang/crates.io-index".adler2."2.0.1" = overridableMkRustCrate (profileName: rec {
     name = "adler2";
@@ -62,8 +62,8 @@ in
     src = fetchCratesIo { inherit name version; sha256 = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"; };
   });
   
-  "unknown".aegis-reborn."0.1.0" = overridableMkRustCrate (profileName: rec {
-    name = "aegis-reborn";
+  "unknown".golden-aegis."0.1.0" = overridableMkRustCrate (profileName: rec {
+    name = "golden-aegis";
     version = "0.1.0";
     registry = "unknown";
     src = fetchCrateLocal workspaceSrc;

@@ -1,9 +1,9 @@
-use aegis_reborn::config::{Config, DataConfig};
-use aegis_reborn::data::{load_csv, OHLCV};
-use aegis_reborn::evaluation::gauntlet::{run_gauntlet, write_reports_to_json};
-use aegis_reborn::evolution::grammar::Grammar;
-use aegis_reborn::evolution::mapper::GrammarBasedMapper;
-use aegis_reborn::evolution::EvolutionEngine;
+use golden_aegis::config::{Config, DataConfig};
+use golden_aegis::data::{load_csv, OHLCV};
+use golden_aegis::evaluation::gauntlet::{run_gauntlet, write_reports_to_json};
+use golden_aegis::evolution::grammar::Grammar;
+use golden_aegis::evolution::mapper::GrammarBasedMapper;
+use golden_aegis::evolution::EvolutionEngine;
 use std::path::Path;
 use std::process;
 
@@ -49,7 +49,7 @@ fn prepare_data(data_config: &DataConfig) -> Result<(Vec<OHLCV>, Vec<OHLCV>), St
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
-    log::info!("Booting Aegis Reborn...");
+    log::info!("Booting Golden Aegis...");
 
     // 1. Load and Validate Configuration
     let config = Config::load(Path::new("config.toml")).unwrap_or_else(|e| {
@@ -123,6 +123,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     write_reports_to_json(&final_reports)?;
 
-    log::info!("--- Aegis Reborn Run Complete ---");
+    log::info!("--- Golden Aegis Run Complete ---");
     Ok(())
 }

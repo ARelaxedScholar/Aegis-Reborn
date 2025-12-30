@@ -1,6 +1,6 @@
-### **Aegis Reborn: An Alchemical Journey into Strategy Evolution**
+### **Golden Aegis: An Alchemical Journey into Strategy Evolution**
 
-Aegis Reborn is a framework for **evolving** trading strategies from scratch using Grammatical Evolution in Rust.
+Golden Aegis is a framework for **evolving** trading strategies from scratch using Grammatical Evolution in Rust.
 
 We don't tell the machine how to trade. We give it a basic language—the building blocks of technical analysis—and it uses a process modeled on Darwinian evolution to discover its own strategies. Good strategies survive and breed. Bad ones are discarded.
 
@@ -17,7 +17,7 @@ We are building this system in three distinct phases to manage complexity and en
 
 *   ⏳ **WALK (We Are Here!!!):** Once the core is proven, we will teach it nuance. This phase will introduce more complex logic and risk management, such as nested `IF/THEN/ELSE` expressions, evolvable **Stop-Loss** and **Take-Profit** levels, and dynamic **Position Sizing**.
 
-*   🚀 **RUN (The Final Form):** The ultimate vision. This phase will expand the system to a full-featured research platform, introducing **shorting capabilities** and tackling the holy grail of quantitative finance: **multi-asset portfolio optimization** (At which point the previous Aegis, which will be renamed Athena, will join back combining alpha-generation with data-driven portfolio allocations.)
+*   🚀 **RUN (The Final Form):** The ultimate vision. This phase will expand the system to a full-featured research platform, introducing **shorting capabilities** and tackling the holy grail of quantitative finance: **multi-asset portfolio optimization**.
 
 ### Current Progress & Next Steps
 
@@ -35,7 +35,7 @@ Gave a smoothed Calmar ratio of 2.7709 (quite impressive) and 0.667 Sharpe Ratio
 
 ---
 
-### **Project Roadmap: Aegis Reborn**
+### **Project Roadmap: Golden Aegis**
 
 #### **Phase 1: CRAWL - The Signal Discovery Engine (MVP)**
 *   **Objective:** Prove that the core architecture can discover a robust, long-only alpha signal for a single asset.

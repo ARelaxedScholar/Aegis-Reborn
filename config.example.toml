@@ -1,4 +1,4 @@
-# Configuration for the Aegis Reborn MVP
+# Configuration for the Golden Aegis MVP
 
 # Path to the grammar definition file
 grammar_file = "grammar.bnf"

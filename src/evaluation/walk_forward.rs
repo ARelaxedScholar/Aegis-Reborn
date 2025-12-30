@@ -46,9 +46,9 @@ impl Error for WalkForwardError {}
 ///
 /// # Example
 /// ```rust
-/// use aegis_reborn::evaluation::walk_forward::WalkForwardValidator;
-/// use aegis_reborn::strategy::Strategy;
-/// use aegis_reborn::data::OHLCV;
+/// use golden_aegis::evaluation::walk_forward::WalkForwardValidator;
+/// use golden_aegis::strategy::Strategy;
+/// use golden_aegis::data::OHLCV;
 ///
 /// let candles : Vec<OHLCV> = vec![
 ///     OHLCV {
