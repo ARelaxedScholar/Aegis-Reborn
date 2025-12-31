@@ -38,6 +38,11 @@ impl VirtualMachine {
         }
     }
 
+    #[cfg(test)]
+    pub fn stack_len(&self) -> usize {
+        self.stack.len()
+    }
+
     pub fn execute(&mut self, program: &[Op], context: &VmContext) -> Result<f64, VmError> {
         self.stack.clear();
         let mut pc = 0;
@@ -125,10 +130,16 @@ impl VirtualMachine {
                         .unwrap_or(f64::NAN);
                     self.push(val)?;
                 }
-                Op::JumpIfFalse(_) | Op::Jump(_) => {
-                    unimplemented!(
-                        "Control flow opcodes are not yet implemented in the 'Crawl' phase VM."
-                    )
+                Op::JumpIfFalse(target) => {
+                    let condition = self.pop()?;
+                    if condition == 0.0 {
+                        // target is absolute program index
+                        pc = *target;
+                    }
+                }
+                Op::Jump(target) => {
+                    // unconditional jump
+                    pc = *target;
                 }
                 Op::Return => break,
             }
@@ -418,5 +429,110 @@ mod tests {
         // Test SMA(20) +2%
         let prog3 = vec![PushDynamic(DynamicConstant::SmaPercent(20, 2))];
         assert!((vm.execute(&prog3, &context).unwrap() - 19890.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_jump_debug() {
+        let mut vm = VirtualMachine::new();
+        let context = dummy_context();
+        // Simple program: push 5, return
+        let program = vec![PushConstant(5.0), Return];
+        let result = vm.execute(&program, &context);
+        dbg!(&result);
+        assert_eq!(result.unwrap(), 5.0);
+        // Program with jump over push 10
+        let program2 = vec![
+            PushConstant(5.0),
+            Jump(3), // should jump to index 3 (PushConstant(20))
+            PushConstant(10.0),
+            PushConstant(20.0),
+            Return,
+        ];
+        let result2 = vm.execute(&program2, &context);
+        dbg!(&result2);
+        assert_eq!(result2.unwrap(), 20.0);
+        // JumpIfFalse false condition
+        let program3 = vec![
+            PushConstant(0.0),
+            JumpIfFalse(3),
+            PushConstant(30.0),
+            PushConstant(40.0),
+            Return,
+        ];
+        let result3 = vm.execute(&program3, &context);
+        dbg!(&result3);
+        assert_eq!(result3.unwrap(), 40.0);
+        // JumpIfFalse true condition
+        let program4 = vec![
+            PushConstant(1.0),
+            JumpIfFalse(3),
+            PushConstant(50.0),
+            PushConstant(60.0),
+            Return,
+        ];
+        let result4 = vm.execute(&program4, &context);
+        dbg!(&result4);
+        assert_eq!(result4.unwrap(), 60.0);
+    }
+
+    #[test]
+    fn test_jump_and_jump_if_false() {
+        let mut vm = VirtualMachine::new();
+        let context = dummy_context();
+
+        // Test unconditional jump
+        // Program: push 5, jump over push 10, push 20, return
+        // Expected result: 20
+        let program = vec![
+            PushConstant(5.0),
+            Jump(3), // jump to index 3 (PushConstant(20.0))
+            PushConstant(10.0), // skipped
+            PushConstant(20.0),
+            Return,
+        ];
+        let result = vm.execute(&program, &context);
+        dbg!(&result);
+        assert_eq!(result.unwrap(), 20.0);
+
+        // Test JumpIfFalse with false condition (0.0)
+        // Program: push 0, jump if false over push 30, push 40, return
+        // Expected: 40
+        let program2 = vec![
+            PushConstant(0.0),
+            JumpIfFalse(3),
+            PushConstant(30.0), // skipped
+            PushConstant(40.0),
+            Return,
+        ];
+        let result2 = vm.execute(&program2, &context);
+        dbg!(&result2);
+        assert_eq!(result2.unwrap(), 40.0);
+
+        // Test JumpIfFalse with true condition (1.0)
+        // Program: push 1, jump if false over push 50, push 60, return
+        // Expected: 60 (jump not taken)
+        let program3 = vec![
+            PushConstant(1.0),
+            JumpIfFalse(3),
+            PushConstant(50.0), // executed
+            PushConstant(60.0),
+            Return,
+        ];
+        let result3 = vm.execute(&program3, &context);
+        dbg!(&result3);
+        assert_eq!(result3.unwrap(), 60.0);
+
+        // Test nested jumps
+        let program4 = vec![
+            PushConstant(0.0), // condition false
+            JumpIfFalse(4), // if false jump to push 100
+            PushConstant(200.0), // true branch
+            Jump(5), // skip false branch
+            PushConstant(100.0), // false branch
+            Return,
+        ];
+        let result4 = vm.execute(&program4, &context);
+        dbg!(&result4);
+        assert_eq!(result4.unwrap(), 100.0);
     }
 }
