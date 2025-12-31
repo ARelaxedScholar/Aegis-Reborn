@@ -729,7 +729,7 @@ mod tests {
         let metrics_config = get_metrics_config();
         let bad_grammar = get_bad_grammar();
         let candles = get_test_candles();
-        let mut engine = EvolutionEngine::new(&config, &metrics_config, &bad_grammar, &candles);
+        let engine = EvolutionEngine::new(&config, &metrics_config, &bad_grammar, &candles);
 
         let genome: Genome = vec![0];
         let FitnessEvaluationReport {

@@ -605,6 +605,20 @@ mod tests {
     }
 
     #[test]
+    fn test_slippage_validation() {
+        // Valid values (including high slippage)
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0, 0.0).is_ok());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0, 0.6).is_ok());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0, 1.0).is_ok());
+
+        // Invalid values
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0, -0.1).is_err());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0, f64::NAN).is_err());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0, f64::INFINITY).is_err());
+        assert!(WalkForwardValidator::new(20, 0.05, 10000.0, 252.0, 0.0, 1.1).is_err());
+    }
+
+    #[test]
     fn test_parameter_validation() {
         // Valid case
         assert!(

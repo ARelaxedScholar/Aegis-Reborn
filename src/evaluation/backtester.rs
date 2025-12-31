@@ -530,7 +530,7 @@ mod tests {
     fn test_annualized_return_calculation() {
         // Test the helper function directly
         let equity_curve = vec![10000.0, 11000.0]; // 10% return over 1 candle
-        let annualized_return = calculate_annualized_return(&equity_curve, 1, 252.0);
+        let _annualized_return = calculate_annualized_return(&equity_curve, 1, 252.0);
 
         // Should be (1.1)^252 - 1 which is a very large number
         // Let's test a more reasonable scenario
@@ -564,5 +564,79 @@ mod tests {
         assert_eq!(result.annualized_return, 0.0);
         assert_eq!(result.max_drawdown, 0.0);
         assert_eq!(result.sharpe_ratio, 0.0);
+    }
+
+    #[test]
+    fn test_slippage_impact() {
+        // Create candles with constant close price to isolate slippage effect
+        let candles = vec![
+            OHLCV {
+                close: 100.0,
+                ..Default::default()
+            },
+            OHLCV {
+                close: 100.0,
+                ..Default::default()
+            },
+        ];
+        let mut backtester = Backtester::new();
+
+        let mut programs = HashMap::new();
+        programs.insert("entry".to_string(), vec![PushConstant(1.0)]); // always enter
+        programs.insert("exit".to_string(), vec![PushConstant(1.0)]); // always exit
+        let strategy = Strategy { programs };
+
+        // 10% slippage each side
+        let slippage_pct = 0.1;
+        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0, slippage_pct);
+
+        // With slippage: entry price = 100 * (1 + 0.1) = 110, exit price = 100 * (1 - 0.1) = 90
+        // Shares bought = (cash) / entry price = 10000 / 110 ≈ 90.9090909
+        // Proceeds = shares * exit price = 90.9090909 * 90 = 8181.818181
+        // No transaction costs, so final equity = 8181.818181
+        let expected_equity = 10000.0 * (1.0 - slippage_pct) / (1.0 + slippage_pct);
+        assert!((result.final_equity - expected_equity).abs() < 1e-9);
+        assert_eq!(result.entry_error_count, 0);
+        assert_eq!(result.exit_error_count, 0);
+        // Max drawdown should reflect the loss due to slippage
+        let expected_max_drawdown = 1.0 - (1.0 - slippage_pct) / (1.0 + slippage_pct);
+        assert!((result.max_drawdown - expected_max_drawdown).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_transaction_cost_impact() {
+        // Create candles with constant close price to isolate transaction cost effect
+        let candles = vec![
+            OHLCV {
+                close: 100.0,
+                ..Default::default()
+            },
+            OHLCV {
+                close: 100.0,
+                ..Default::default()
+            },
+        ];
+        let mut backtester = Backtester::new();
+
+        let mut programs = HashMap::new();
+        programs.insert("entry".to_string(), vec![PushConstant(1.0)]); // always enter
+        programs.insert("exit".to_string(), vec![PushConstant(1.0)]); // always exit
+        let strategy = Strategy { programs };
+
+        // 10% transaction cost each side
+        let transaction_cost_pct = 0.1;
+        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, transaction_cost_pct, 0.0);
+
+        // With transaction cost: entry cash = 10000 * (1 - 0.1) = 9000 used to buy shares
+        // Shares bought = 9000 / 100 = 90
+        // Exit proceeds = shares * 100 = 9000, minus transaction cost = 9000 * (1 - 0.1) = 8100
+        // Final equity = 8100
+        let expected_equity = 10000.0 * (1.0 - transaction_cost_pct).powi(2);
+        assert!((result.final_equity - expected_equity).abs() < 1e-9);
+        assert_eq!(result.entry_error_count, 0);
+        assert_eq!(result.exit_error_count, 0);
+        // Max drawdown should reflect the loss due to transaction cost
+        let expected_max_drawdown = 1.0 - (1.0 - transaction_cost_pct).powi(2);
+        assert!((result.max_drawdown - expected_max_drawdown).abs() < 1e-9);
     }
 }
