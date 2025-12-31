@@ -1,3 +1,4 @@
+use clap::Parser;
 use golden_aegis::config::{Config, DataConfig};
 use golden_aegis::data::{load_csv, OHLCV};
 use golden_aegis::evaluation::gauntlet::{run_gauntlet, write_reports_to_json};
@@ -6,6 +7,14 @@ use golden_aegis::evolution::mapper::GrammarBasedMapper;
 use golden_aegis::evolution::EvolutionEngine;
 use std::path::Path;
 use std::process;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Path to the configuration file
+    #[arg(short, long, default_value = "config.toml")]
+    config: String,
+}
 
 /// Loads OHLCV data from a CSV file and splits it into training and hold-out sets.
 ///
@@ -49,10 +58,11 @@ fn prepare_data(data_config: &DataConfig) -> Result<(Vec<OHLCV>, Vec<OHLCV>), St
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
+    let args = Args::parse();
     log::info!("Booting Golden Aegis...");
 
     // 1. Load and Validate Configuration
-    let config = Config::load(Path::new("config.toml")).unwrap_or_else(|e| {
+    let config = Config::load(Path::new(&args.config)).unwrap_or_else(|e| {
         log::error!("Failed to load configuration: {}", e);
         process::exit(1);
     });

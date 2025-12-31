@@ -1,8 +1,8 @@
+use criterion::{criterion_group, criterion_main, Criterion};
 use golden_aegis::config::Config;
 use golden_aegis::data::{load_csv, OHLCV};
 use golden_aegis::evolution::grammar::Grammar;
 use golden_aegis::evolution::EvolutionEngine;
-use criterion::{criterion_group, criterion_main, Criterion};
 use std::path::Path;
 use std::time::Duration;
 

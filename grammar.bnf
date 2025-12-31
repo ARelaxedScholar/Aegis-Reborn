@@ -1,4 +1,25 @@
-# --- Root ---
+# ============================================================================
+# Golden Aegis Grammar Definition (BNF)
+# ============================================================================
+#
+# This file defines the language of trading strategies that the evolutionary
+# algorithm can explore. The grammar is written in Backus‑Naur Form (BNF).
+#
+# How to extend the grammar:
+# 1. Add a new terminal symbol (e.g., a new indicator) under `<indicator>` or
+#    `<price>` or define a new operand type.
+# 2. Implement the corresponding computation in `src/evaluation/indicators.rs`.
+# 3. Add the bytecode operation in `src/vm/op.rs` and implement its execution
+#    in `src/vm/engine.rs`.
+# 4. Update the mapper (`src/evolution/mapper.rs`) to handle the new symbol.
+#
+# The grammar is deliberately minimal during the "Crawl" phase. New constructs
+# (e.g., nested IF/THEN/ELSE, stop‑losses, position sizing) will be added in
+# the "Walk" and "Run" phases.
+#
+# ----------------------------------------------------------------------------
+# Root
+# ----------------------------------------------------------------------------
 # A strategy MUST have an entry program. The exit program is optional.
 <start> ::= <entry_program> <optional_exit>
 
@@ -29,5 +50,13 @@
 # Dynamic, relative constants, crucial for high-value assets.
 <dynamic_constant> ::= CLOSE_P1 | CLOSE_M1 | SMA20_P2 | SMA20_M2
 
+# Technical indicators. To add a new indicator:
+# 1. Add its symbol here (e.g., | EMA12 | MACD | etc.)
+# 2. Implement its computation in `src/evaluation/indicators.rs`.
+# 3. Add the corresponding bytecode operation in `src/vm/op.rs` and implement
+#    its execution in `src/vm/engine.rs`.
+# 4. Update the mapper (`src/evolution/mapper.rs`) to recognize the new symbol.
 <indicator> ::= SMA20 | SMA100 | RSI14
+
+# Price series available for comparison.
 <price> ::= OPEN | HIGH | LOW | CLOSE

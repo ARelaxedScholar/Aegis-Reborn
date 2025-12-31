@@ -109,7 +109,6 @@ pub fn get_required_indicators(strategy: &Strategy) -> Vec<IndicatorType> {
     indicators.into_iter().collect()
 }
 
-
 /// Calculates the annualized return based on the equity curve.
 ///
 /// # Arguments
@@ -144,7 +143,11 @@ pub fn calculate_annualized_return(
 ///
 /// # Returns
 /// Sharpe ratio as `f64`
-pub fn calculate_sharpe_ratio(equity_curve: &[f64], risk_free_rate: f64, annualization_factor: f64) -> f64 {
+pub fn calculate_sharpe_ratio(
+    equity_curve: &[f64],
+    risk_free_rate: f64,
+    annualization_factor: f64,
+) -> f64 {
     if equity_curve.len() < 20 {
         return 0.0;
     } // Not enough data for meaningful stats
@@ -229,7 +232,7 @@ impl Backtester {
     /// mut to use its methods.
     /// Runs the backtest with "IS-Lite" (Implementation Shortfall Lite).
     /// Now includes `transaction_cost_pct` to penalize high-frequency turnover.
-    /// 
+    ///
     /// # Arguments
     /// * `&mut self` - The `Backtester` instance with the `vm` to use
     /// * `candles` - Reference to a container of `OHLCV` candles
@@ -238,6 +241,7 @@ impl Backtester {
     /// * `initial_cash` - A `f64` representing the starting cash amount
     /// * `annualization_factor` - A `f64` representing the number of candles in a year (can technically be fractional)
     /// * `transaction_cost_pct` - A `f64` representing the transaction cost percentage per side (e.g., 0.001 for 0.1%)
+    /// * `slippage_pct` - A `f64` representing the slippage percentage per side (e.g., 0.001 for 0.1% price impact)
     ///
     /// # Returns
     /// `BacktestResult`
@@ -249,6 +253,7 @@ impl Backtester {
         initial_cash: f64,
         annualization_factor: f64,
         transaction_cost_pct: f64, // <--- NEW ARGUMENT (e.g. 0.001 for 0.1% per side)
+        slippage_pct: f64,
     ) -> BacktestResult {
         let mut portfolio = Portfolio::new(initial_cash, annualization_factor);
         let mut entry_error_count = 0;
@@ -286,8 +291,9 @@ impl Backtester {
                                 // We cannot invest 100% of cash; we must save some for the fee/slippage.
                                 // Formula: Investable = Cash * (1 - cost_pct)
                                 let investable_cash = portfolio.cash * (1.0 - transaction_cost_pct);
-                                
-                                portfolio.position_size = investable_cash / candle.close;
+                                let entry_price = candle.close * (1.0 + slippage_pct);
+
+                                portfolio.position_size = investable_cash / entry_price;
                                 portfolio.cash = 0.0;
                                 portfolio.state = PositionState::Long;
                             } else {
@@ -309,9 +315,10 @@ impl Backtester {
                             // --- IS-LITE: APPLY EXIT FRICTION ---
                             // Gross Proceeds = Size * Price
                             // Net Cash = Gross Proceeds * (1 - cost_pct)
-                            let gross_proceeds = portfolio.position_size * candle.close;
+                            let exit_price = candle.close * (1.0 - slippage_pct);
+                            let gross_proceeds = portfolio.position_size * exit_price;
                             portfolio.cash = gross_proceeds * (1.0 - transaction_cost_pct);
-                            
+
                             portfolio.position_size = 0.0;
                             portfolio.state = PositionState::Flat;
                         }
@@ -329,9 +336,10 @@ impl Backtester {
         if let Some(last_candle) = candles.last() {
             if portfolio.state == PositionState::Long {
                 // --- IS-LITE: APPLY LIQUIDATION FRICTION ---
-                let gross_proceeds = portfolio.position_size * last_candle.close;
+                let exit_price = last_candle.close * (1.0 - slippage_pct);
+                let gross_proceeds = portfolio.position_size * exit_price;
                 portfolio.cash = gross_proceeds * (1.0 - transaction_cost_pct);
-                
+
                 portfolio.position_size = 0.0;
             }
             portfolio.update_equity(last_candle.close);
@@ -345,7 +353,11 @@ impl Backtester {
         );
         let max_drawdown = calculate_max_drawdown(&portfolio.equity_curve);
         // Note: Assuming you updated calculate_sharpe_ratio to accept annualization_factor as per previous discussions
-        let sharpe_ratio = calculate_sharpe_ratio(&portfolio.equity_curve, risk_free_rate, portfolio.annualization_factor); 
+        let sharpe_ratio = calculate_sharpe_ratio(
+            &portfolio.equity_curve,
+            risk_free_rate,
+            portfolio.annualization_factor,
+        );
 
         BacktestResult {
             final_equity,
@@ -381,7 +393,7 @@ mod tests {
         programs.insert("entry".to_string(), vec![PushConstant(1.0)]); // always enter
         let strategy = Strategy { programs };
 
-        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0);
+        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0, 0.0);
 
         // Expected: Buys at 100 with 10k cash = 100 shares, liquidated at 110 = 11k final equity
         assert_eq!(result.final_equity, 11_000.0);
@@ -409,7 +421,7 @@ mod tests {
         programs.insert("exit".to_string(), vec![PushConstant(1.0)]); // always exit
         let strategy = Strategy { programs };
 
-        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0);
+        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0, 0.0);
 
         // Expected: Never enters, so cash remains initial
         assert_eq!(result.final_equity, 10000.0);
@@ -431,7 +443,7 @@ mod tests {
         programs.insert("entry".to_string(), vec![Add]);
         let strategy = Strategy { programs };
 
-        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0);
+        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0, 0.0);
         assert_eq!(result.final_equity, 10000.0);
         assert_eq!(result.entry_error_count, 1);
         assert_eq!(result.exit_error_count, 0);
@@ -457,7 +469,7 @@ mod tests {
         programs.insert("exit".to_string(), vec![Add]); // This will cause stack underflow
         let strategy = Strategy { programs };
 
-        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0);
+        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0, 0.0);
         // Should enter on first candle, then have VM error on exit attempt
         assert_eq!(result.final_equity, 11_000.0); // Liquidated at end
         assert_eq!(result.entry_error_count, 0);
@@ -503,7 +515,7 @@ mod tests {
         programs.insert("exit".to_string(), vec![PushConstant(1.0)]); // always exit
         let strategy = Strategy { programs };
 
-        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0);
+        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0, 0.0);
 
         // Should buy at 100, sell at 110, then buy again at 110, liquidate at 120
         // First cycle: 10000 -> 11000 (10% gain)
@@ -544,7 +556,7 @@ mod tests {
             programs: HashMap::new(),
         };
 
-        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0);
+        let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0, 0.0);
 
         assert_eq!(result.final_equity, 10000.0);
         assert_eq!(result.entry_error_count, 0);

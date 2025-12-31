@@ -8,6 +8,87 @@ This project is an experiment in discovering genuine, data-driven alpha by combi
 
 
 
+### Prerequisites
+
+- **Rust** (via [rustup](https://rustup.rs/)) – the latest stable version (1.85.0 or higher)
+- **Git** – to clone the repository
+- A terminal and basic command-line familiarity
+
+### Installation
+
+Clone the repository (replace `<repository-url>` with your fork or the original URL):
+
+```bash
+git clone <repository-url>
+cd golden-aegis
+cargo build --release
+```
+
+### Quick Start
+
+1. Copy the example configuration:
+   ```bash
+   cp config.example.toml config.toml
+   ```
+2. Ensure the default data file `data/BTC-USD.csv` exists (it is included in the repository).
+3. Run the evolution with default settings:
+   ```bash
+   cargo run --release
+   ```
+   To use a custom configuration file:
+   ```bash
+   cargo run --release -- --config my_strategy.toml
+   ```
+4. View the generated reports in the `output_examples/` directory.
+
+### Data Format
+
+Golden Aegis expects CSV files with the following columns (case-insensitive):
+- `Date` – in `YYYY-MM-DD` format (e.g., `2014-09-17`)
+- `Open`, `High`, `Low`, `Close` – price values (floating-point)
+- `Adj Close` – adjusted close price (used by default; falls back to `Close` if absent)
+- `Volume` – trading volume (floating-point)
+
+The CSV loader automatically detects common column name variations (`open`, `OPEN`, `Open`, etc.).  
+Data from Yahoo Finance, Binance, or other sources that follow this convention should work without modification.
+
+### Usage
+
+- **Logging**: Set the `RUST_LOG` environment variable to control log output:
+  ```bash
+  RUST_LOG=info cargo run --release
+  ```
+- **Command-line options**:
+  ```bash
+  cargo run --release -- --help            # Show all available options
+  cargo run --release -- --config custom.toml  # Use a custom configuration file
+  ```
+- **Output**: After each run, a JSON report is written to `output_examples/gauntlet_report_<timestamp>.json` containing the performance metrics of the top‑evolved strategies.
+
+### Results / Case Study
+
+During the **Crawl** phase, the system discovered the following strategy:
+
+> **Entry**: `Close` is 1 % above the 100‑period Simple Moving Average (SMA)  
+> **Exit**: 14‑period Relative Strength Index (RSI) ≤ 50
+
+This strategy achieved a **smoothed Calmar ratio of 2.7709** and a **Sharpe ratio of 0.667** on the hold‑out set, demonstrating that the evolutionary process can generate semantically meaningful, profitable rules without human intervention.
+
+![Equity curve of the discovered strategy](https://github.com/user-attachments/assets/e90a4b6f-db74-47ff-a1bd-7a9e708af898)
+
+### Advanced Installation (Nix)
+
+If you use [Nix](https://nixos.org/), you can enter a fully‑contained development environment with all dependencies pre‑installed:
+
+```bash
+nix develop          # Start a development shell (cargo, rustfmt, rust‑analyzer, etc.)
+nix build .#golden-aegis  # Build the binary using the Nix‑managed toolchain
+```
+
+The project includes a `flake.nix` and `Cargo.nix` for reproducible builds.
+
+---
+
 ### The Philosophy: Crawl, Walk, Run
 
 We are building this system in three distinct phases to manage complexity and ensure a robust foundation.

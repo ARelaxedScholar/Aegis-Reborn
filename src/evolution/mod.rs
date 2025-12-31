@@ -311,6 +311,7 @@ impl<'a> EvolutionEngine<'a> {
             self.metrics_params.initial_cash,
             self.metrics_params.annualization_rate,
             self.metrics_params.transaction_cost_pct,
+            self.metrics_params.slippage_pct,
         ) {
             Ok(v) => v,
             Err(e) => {
@@ -515,6 +516,7 @@ mod tests {
             initial_cash: 10_000.0,
             annualization_rate: 252.0,
             transaction_cost_pct: 0.0,
+            slippage_pct: 0.0,
         }
     }
 

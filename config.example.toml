@@ -30,3 +30,4 @@ annualization_rate = 252.0 # Assuming 252 trading days in a year
 risk_free_rate = 0.02 # e.g., 2% annualized risk-free rate
 bootstrap_runs = 2_000
 transaction_cost_pct = 0.001 # 0.1% per side transaction cost (must be ≤ 1.0, >0.5 triggers warning)
+slippage_pct = 0.001 # 0.1% per side slippage (must be ≤ 1.0, >0.5 triggers warning)

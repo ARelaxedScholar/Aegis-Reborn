@@ -19,6 +19,9 @@ pub struct MetricsConfig {
     /// Transaction cost percentage per side (e.g., 0.001 for 0.1% per trade)
     #[serde(default)]
     pub transaction_cost_pct: f64,
+    /// Slippage percentage per side (e.g., 0.001 for 0.1% price impact)
+    #[serde(default)]
+    pub slippage_pct: f64,
 }
 
 /// This struct encapsulates the logic related to taking CSV data from the user and preparing it
@@ -121,8 +124,7 @@ impl Config {
         }
         if self.ga.test_window_size < 2 {
             return Err(
-                "The test window size must be at least 2 for meaningful analysis"
-                    .to_string(),
+                "The test window size must be at least 2 for meaningful analysis".to_string(),
             );
         }
         if self.ga.size_of_council == 0 {
@@ -151,6 +153,18 @@ impl Config {
         }
         if self.metrics.transaction_cost_pct > 0.5 {
             warn!("transaction_cost_pct is unusually high (>50%). This may be intentional for stress testing.");
+        }
+        if !self.metrics.slippage_pct.is_finite() {
+            return Err("slippage_pct must be a finite number".to_string());
+        }
+        if self.metrics.slippage_pct < 0.0 {
+            return Err("slippage_pct must be non-negative".to_string());
+        }
+        if self.metrics.slippage_pct > 1.0 {
+            return Err("slippage_pct must be <= 1.0 (100%)".to_string());
+        }
+        if self.metrics.slippage_pct > 0.5 {
+            warn!("slippage_pct is unusually high (>50%). This may be intentional for stress testing.");
         }
         Ok(())
     }

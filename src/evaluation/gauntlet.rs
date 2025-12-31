@@ -327,6 +327,7 @@ fn process_champion(
         metrics_config.initial_cash,
         metrics_config.annualization_rate,
         metrics_config.transaction_cost_pct,
+        metrics_config.slippage_pct,
     );
 
     if !hold_out_result.final_equity.is_finite() {
@@ -429,6 +430,7 @@ fn run_market_bootstrap(
             metrics_config.initial_cash,
             metrics_config.annualization_rate,
             metrics_config.transaction_cost_pct,
+            metrics_config.slippage_pct,
         );
         if result.final_equity.is_finite() && result.final_equity > 0.0 {
             results.push(result);
@@ -447,12 +449,12 @@ fn run_market_bootstrap(
     calculate_bootstrap_statistics(&results, metrics_config.initial_cash)
 }
 
-/// Intrabar distribution built from historical bars: positive deltas for high-close (upside wick)
-/// and close-low (downside wick). Sampling these preserves realistic bar shapes.
+/// Intrabar distribution built from historical bars: percentage deltas for high-close (upside wick)
+/// and close-low (downside wick). Sampling these preserves realistic bar shapes across price regimes.
 #[derive(Clone, Copy, Debug)]
 struct IntrabarDelta {
-    up: f64,   // high - close
-    down: f64, // close - low
+    up_pct: f64,   // (high - close) / close
+    down_pct: f64, // (close - low) / close
 }
 
 /// Function to create intrabar-delta samples to allow realistic samples
@@ -469,10 +471,14 @@ fn build_intrabar_samples(data: &[OHLCV]) -> Result<Vec<IntrabarDelta>, String> 
     }
     let mut v = Vec::with_capacity(data.len());
     for c in data.iter() {
-        let up = (c.high - c.close).max(0.0);
-        let down = (c.close - c.low).max(0.0);
-        if up.is_finite() && down.is_finite() {
-            v.push(IntrabarDelta { up, down });
+        // Skip candles with invalid or non-positive close prices
+        if c.close <= 0.0 || !c.close.is_finite() {
+            continue;
+        }
+        let up_pct = ((c.high - c.close) / c.close).max(0.0);
+        let down_pct = ((c.close - c.low) / c.close).max(0.0).min(1.0); // clamp to [0,1] since low ≤ close
+        if up_pct.is_finite() && down_pct.is_finite() {
+            v.push(IntrabarDelta { up_pct, down_pct });
         }
     }
     if v.is_empty() {
@@ -520,10 +526,10 @@ fn generate_synthetic_candles_from_samples(
         // Open = previous close (simple and consistent)
         let open = close;
 
-        // Sample an intrabar shape from history
+        // Sample an intrabar shape from history (percentage-based to avoid volatility drift)
         let s = intrabar[rng.random_range(0..intrabar.len())];
-        let high = next_close + s.up;
-        let low = (next_close - s.down).max(1e-12);
+        let high = next_close * (1.0 + s.up_pct);
+        let low = next_close * (1.0 - s.down_pct).max(1e-12);
 
         // Use original timestamp cadence & volume
         let src = &original_data[(i + 1).min(original_data.len() - 1)];
@@ -1116,6 +1122,7 @@ mod tests {
             initial_cash: 10000.0,
             annualization_rate: 252.0,
             transaction_cost_pct: 0.0,
+            slippage_pct: 0.0,
         };
 
         (ga_config, metrics_config)
@@ -1384,6 +1391,7 @@ mod tests {
             initial_cash: 10000.0,
             annualization_rate: 252.0,
             transaction_cost_pct: 0.0,
+            slippage_pct: 0.0,
         };
 
         let result =
@@ -1406,6 +1414,7 @@ mod tests {
             initial_cash: 10000.0,
             annualization_rate: 252.0,
             transaction_cost_pct: 0.0,
+            slippage_pct: 0.0,
         };
 
         let result =
@@ -1486,8 +1495,8 @@ mod tests {
 
         // Verify all samples are non-negative and finite
         for sample in &samples {
-            assert!(sample.up >= 0.0 && sample.up.is_finite());
-            assert!(sample.down >= 0.0 && sample.down.is_finite());
+            assert!(sample.up_pct >= 0.0 && sample.up_pct.is_finite());
+            assert!(sample.down_pct >= 0.0 && sample.down_pct.is_finite());
         }
     }
 
