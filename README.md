@@ -1,5 +1,8 @@
 ### **Golden Aegis: An Alchemical Journey into Strategy Evolution**
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Built with Nix](https://img.shields.io/badge/Built%20with-Nix-5277C3.svg?logo=nixos&labelColor=777777)](https://nixos.org)
+
 Golden Aegis is a framework for **evolving** trading strategies from scratch using Grammatical Evolution in Rust.
 
 We don't tell the machine how to trade. We give it a basic language—the building blocks of technical analysis—and it uses a process modeled on Darwinian evolution to discover its own strategies. Good strategies survive and breed. Bad ones are discarded.
