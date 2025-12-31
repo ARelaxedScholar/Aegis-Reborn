@@ -9,6 +9,10 @@ We don't tell the machine how to trade. We give it a basic language—the buildi
 
 This project is an experiment in discovering genuine, data-driven alpha by combining a high-performance backtesting engine with the creative, unconstrained search of an evolutionary algorithm.
 
+**Note:** This is a tool for research, not live execution. The final output is a statistically rigorous report, not a trade signal, designed to answer one question: "Is this strategy genuinely robust, or just a fluke of the data?"
+
+Golden Aegis aims to make that first step—alpha discovery—simple.
+
 
 
 ### Prerequisites
@@ -70,12 +74,14 @@ Data from Yahoo Finance, Binance, or other sources that follow this convention s
 
 ### Results / Case Study
 
-During the **Crawl** phase, the system discovered the following strategy:
+The **"Crawl"** phase of this project is complete, and the system has already demonstrated its capability by autonomously evolving a logically sound strategy from a simple grammar.
 
-> **Entry**: `Close` is 1 % above the 100‑period Simple Moving Average (SMA)  
-> **Exit**: 14‑period Relative Strength Index (RSI) ≤ 50
+The strategy that emerged can be translated into human-readable logic:
+> **Entry:** If the `Close` price is 1% above the `SMA(100)`, enter a long position. *(This identifies a strong upward trend.)*
+>
+> **Exit:** If the `RSI(14)` is less than or equal to 50, exit the position. *(This exits when momentum becomes neutral or bearish, protecting profits.)*
 
-This strategy achieved a **smoothed Calmar ratio of 2.7709** and a **Sharpe ratio of 0.667** on the hold‑out set, demonstrating that the evolutionary process can generate semantically meaningful, profitable rules without human intervention.
+On the hold-out set, this simple, evolved strategy produced a **Sharpe Ratio of 0.67** and a **Smoothed Calmar Ratio of 2.77**. While not a world-beating result, its logical coherence is a powerful proof of concept for the evolutionary process.
 
 ![Equity curve of the discovered strategy](https://github.com/user-attachments/assets/e90a4b6f-db74-47ff-a1bd-7a9e708af898)
 
@@ -164,3 +170,11 @@ Gave a smoothed Calmar ratio of 2.7709 (quite impressive) and 0.667 Sharpe Ratio
     *   **The "Meta-Block" (Research):**
         *   Implement the co-evolutionary feedback loop where strategies and portfolio allocations evolve in tandem.
 *   **Exit Criteria:** The system is a feature-complete framework capable of discovering and validating complex, multi-asset, long/short trading portfolios.
+
+## Contributing
+
+This project is under active development. Contributions, feature suggestions, and bug reports are welcome! Please open an issue to discuss your ideas.
+
+## License
+
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
