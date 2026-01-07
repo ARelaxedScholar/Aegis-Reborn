@@ -24,6 +24,38 @@ pub struct MetricsConfig {
     pub slippage_pct: f64,
 }
 
+/// Configuration for transpiling strategies to QuantConnect algorithms
+#[derive(Deserialize, Debug, Clone)]
+pub struct TranspilerConfig {
+    /// Trading symbol (e.g., "SPY", "BTCUSD")
+    #[serde(default = "default_symbol")]
+    pub symbol: String,
+    /// Data resolution (e.g., "Daily", "Hour", "Minute")
+    #[serde(default = "default_resolution")]
+    pub resolution: String,
+    /// Market type (e.g., "usa", "fxcm", "oanda")
+    #[serde(default = "default_market")]
+    pub market: String,
+    /// Override initial cash (uses metrics.initial_cash if not specified)
+    pub initial_cash: Option<f64>,
+    /// Override transaction cost percentage (uses metrics.transaction_cost_pct if not specified)
+    pub transaction_cost_pct: Option<f64>,
+    /// Override slippage percentage (uses metrics.slippage_pct if not specified)
+    pub slippage_pct: Option<f64>,
+}
+
+fn default_symbol() -> String {
+    "SPY".to_string()
+}
+
+fn default_resolution() -> String {
+    "Daily".to_string()
+}
+
+fn default_market() -> String {
+    "usa".to_string()
+}
+
 /// This struct encapsulates the logic related to taking CSV data from the user and preparing it
 /// for the evolution
 #[derive(Deserialize, Debug)]
@@ -82,6 +114,9 @@ pub struct Config {
     pub ga: GaConfig,
     /// The `MetricsConfig` struct
     pub metrics: MetricsConfig,
+    /// Optional configuration for transpiler output
+    #[serde(default)]
+    pub transpiler: Option<TranspilerConfig>,
 }
 
 impl Config {
@@ -167,5 +202,28 @@ impl Config {
             warn!("slippage_pct is unusually high (>50%). This may be intentional for stress testing.");
         }
         Ok(())
+    }
+
+    /// Returns a fully resolved TranspilerConfig, merging defaults with any provided overrides
+    pub fn get_transpiler_config(&self) -> TranspilerConfig {
+        if let Some(ref transpiler) = self.transpiler {
+            TranspilerConfig {
+                symbol: transpiler.symbol.clone(),
+                resolution: transpiler.resolution.clone(),
+                market: transpiler.market.clone(),
+                initial_cash: transpiler.initial_cash.or(Some(self.metrics.initial_cash)),
+                transaction_cost_pct: transpiler.transaction_cost_pct.or(Some(self.metrics.transaction_cost_pct)),
+                slippage_pct: transpiler.slippage_pct.or(Some(self.metrics.slippage_pct)),
+            }
+        } else {
+            TranspilerConfig {
+                symbol: default_symbol(),
+                resolution: default_resolution(),
+                market: default_market(),
+                initial_cash: Some(self.metrics.initial_cash),
+                transaction_cost_pct: Some(self.metrics.transaction_cost_pct),
+                slippage_pct: Some(self.metrics.slippage_pct),
+            }
+        }
     }
 }

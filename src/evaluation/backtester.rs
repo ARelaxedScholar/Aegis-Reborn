@@ -252,7 +252,7 @@ impl Backtester {
         risk_free_rate: f64,
         initial_cash: f64,
         annualization_factor: f64,
-        transaction_cost_pct: f64, // <--- NEW ARGUMENT (e.g. 0.001 for 0.1% per side)
+        transaction_cost_pct: f64,
         slippage_pct: f64,
     ) -> BacktestResult {
         let mut portfolio = Portfolio::new(initial_cash, annualization_factor);
@@ -352,7 +352,6 @@ impl Backtester {
             portfolio.annualization_factor,
         );
         let max_drawdown = calculate_max_drawdown(&portfolio.equity_curve);
-        // Note: Assuming you updated calculate_sharpe_ratio to accept annualization_factor as per previous discussions
         let sharpe_ratio = calculate_sharpe_ratio(
             &portfolio.equity_curve,
             risk_free_rate,
@@ -439,7 +438,7 @@ mod tests {
         }];
         let mut backtester = Backtester::new();
         let mut programs = HashMap::new();
-        // This program will cause a stack underflow
+        // This program will cause a stack underflow since Add expects TWO operands and we pass none.
         programs.insert("entry".to_string(), vec![Add]);
         let strategy = Strategy { programs };
 
@@ -466,7 +465,7 @@ mod tests {
         let mut backtester = Backtester::new();
         let mut programs = HashMap::new();
         programs.insert("entry".to_string(), vec![PushConstant(1.0)]); // always enter
-        programs.insert("exit".to_string(), vec![Add]); // This will cause stack underflow
+        programs.insert("exit".to_string(), vec![Add]); // This will cause stack underflow (same as previous test)
         let strategy = Strategy { programs };
 
         let result = backtester.run(&candles, &strategy, 0.02, 10000.0, 252.0, 0.0, 0.0);

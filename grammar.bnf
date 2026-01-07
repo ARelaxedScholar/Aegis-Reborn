@@ -35,7 +35,7 @@
 <arithmetic_expr> ::= <operand> | <arithmetic_expr> <arithmetic_expr> <arithmetic_op>
 
 # --- Operators (Terminals) ---
-<comparator> ::= GT | LT | GE | LE | EQ
+<comparator> ::= GT | LT | GE | LE
 <logical_op> ::= AND | OR
 <arithmetic_op> ::= ADD | SUB | MUL | DIV_SAFE
 
