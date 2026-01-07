@@ -10,6 +10,7 @@ use log::{debug, error, info, warn};
 use rand::prelude::*;
 use rand::rng;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use serde::{Deserialize, Serialize};
 /// Penalty to assign when a strategy is so egregiously bad it must be excised from the gene pool
 const INFINITE_PENALTY: f64 = f64::NEG_INFINITY;
 
@@ -18,7 +19,7 @@ pub type Genome = Vec<u32>;
 
 /// This struct represents a given individual born during the evolution process
 /// the goal of this architecture is to evolve, nurture, and find those of outstanding quality.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Individual {
     /// This is the DNA, genome of a given individual, represents the sequence of u32 that compose
     /// it

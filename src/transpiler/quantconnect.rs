@@ -8,11 +8,15 @@ pub struct TranspilerEngine {
     config: TranspilerConfig,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum TranspilerError {
+    #[error("Unsupported opcode: {0}")]
     UnsupportedOp(String),
+    #[error("Invalid jump target: {0}")]
     InvalidJumpTarget(usize),
+    #[error("Stack underflow during transpilation")]
     StackUnderflow,
+    #[error("Invalid program structure (missing entry program)")]
     InvalidProgram,
 }
 

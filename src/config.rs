@@ -1,12 +1,12 @@
 use log::warn;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
 /// This struct encapsulates the configuration information
 /// for metrics computation. Note they are NOT necessarily essential for the core grammatical evolution component
 /// (might be tangentially involved), but they are helpful for tracking.
-#[derive(Clone, Copy, Deserialize, Debug)]
+#[derive(Clone, Copy, Deserialize, Debug, Serialize)]
 pub struct MetricsConfig {
     /// Starting amount of money
     pub initial_cash: f64,
@@ -25,7 +25,7 @@ pub struct MetricsConfig {
 }
 
 /// Configuration for transpiling strategies to QuantConnect algorithms
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct TranspilerConfig {
     /// Trading symbol (e.g., "SPY", "BTCUSD")
     #[serde(default = "default_symbol")]
@@ -58,7 +58,7 @@ fn default_market() -> String {
 
 /// This struct encapsulates the logic related to taking CSV data from the user and preparing it
 /// for the evolution
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct DataConfig {
     /// File to the CSV file containing the candles
     pub file_path: String,
@@ -68,7 +68,7 @@ pub struct DataConfig {
 
 /// This struct encapsulates all of the information related to the actual
 /// core evolutionary process.
-#[derive(Clone, Copy, Deserialize, Debug, Default)]
+#[derive(Clone, Copy, Deserialize, Debug, Default, Serialize)]
 pub struct GaConfig {
     /// Size of the population (no shit, Sherlock)
     pub population_size: usize,
