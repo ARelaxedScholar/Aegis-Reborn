@@ -1,8 +1,9 @@
 use crate::data::OHLCV;
 use crate::evaluation::indicators::IndicatorManager;
+use crate::evaluation::rolling::RollingWindowManager;
 use crate::strategy::Strategy;
 use crate::vm::engine::{VirtualMachine, VmContext};
-use crate::vm::op::{IndicatorType, Op};
+use crate::vm::op::{IndicatorType, Op, PriceType};
 use log::warn;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -135,6 +136,19 @@ pub fn get_required_history_lookback(strategy: &Strategy) -> usize {
         }
     }
     max_lookback
+}
+
+/// Scans all programs in a strategy to find which rolling sums are required.
+pub fn get_required_rolling_sums(strategy: &Strategy) -> Vec<(PriceType, u16)> {
+    let mut sums = HashSet::new();
+    for program in strategy.programs.values() {
+        for op in program {
+            if let Op::PushRollingSum(price_type, period) = op {
+                sums.insert((price_type.clone(), *period));
+            }
+        }
+    }
+    sums.into_iter().collect()
 }
 
 /// Calculates the annualized return based on the equity curve.
@@ -297,11 +311,15 @@ impl Backtester {
         let required_indicators = get_required_indicators(strategy);
         let mut indicator_manager = IndicatorManager::new(&required_indicators);
 
+        let required_rolling_sums = get_required_rolling_sums(strategy);
+        let mut rolling_manager = RollingWindowManager::new(&required_rolling_sums);
+
         let max_lookback = get_required_history_lookback(strategy);
         let mut history_buffer = VecDeque::with_capacity(max_lookback + 1);
 
         for (i, candle) in candles.iter().enumerate() {
             indicator_manager.next(candle);
+            rolling_manager.next(candle);
             portfolio.update_equity(candle.close);
 
             // Update history buffer incrementally (index 0 = current, 1 = previous, etc.)
@@ -316,9 +334,11 @@ impl Backtester {
                 low: candle.low,
                 close: candle.close,
                 indicators: HashMap::new(),
+                rolling_sums: HashMap::new(),
                 history: history_buffer.clone(),
             };
             indicator_manager.populate_context(&mut context);
+            rolling_manager.populate_context(&mut context);
 
             if portfolio.state == PositionState::Flat {
                 if let Some(entry_program) = strategy.programs.get("entry") {

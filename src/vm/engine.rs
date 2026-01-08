@@ -11,6 +11,7 @@ pub struct VmContext {
     pub low: f64,
     pub close: f64,
     pub indicators: HashMap<IndicatorType, f64>,
+    pub rolling_sums: HashMap<(PriceType, u16), f64>,
     /// Historical OHLCV data for the last N periods (including current).
     /// Index 0 is current candle, index 1 is previous candle, etc.
     /// Length should be at least max(required historical lookback).
@@ -156,22 +157,28 @@ impl VirtualMachine {
                     self.push(val)?;
                 }
                 Op::PushRollingSum(price_type, period) => {
-                    let mut sum = 0.0;
-                    let mut count = 0;
-                    for i in 0..*period {
-                        if let Some(candle) = context.history.get(i as usize) {
-                            sum += match price_type {
-                                PriceType::Open => candle.open,
-                                PriceType::High => candle.high,
-                                PriceType::Low => candle.low,
-                                PriceType::Close => candle.close,
-                            };
-                            count += 1;
+                    // First try to get from cache
+                    let key = ((*price_type).clone(), *period);
+                    if let Some(&sum) = context.rolling_sums.get(&key) {
+                        self.push(sum)?;
+                    } else {
+                        // Fallback to original computation (for backward compatibility)
+                        let mut sum = 0.0;
+                        let mut count = 0;
+                        for i in 0..*period {
+                            if let Some(candle) = context.history.get(i as usize) {
+                                sum += match price_type {
+                                    PriceType::Open => candle.open,
+                                    PriceType::High => candle.high,
+                                    PriceType::Low => candle.low,
+                                    PriceType::Close => candle.close,
+                                };
+                                count += 1;
+                            }
                         }
+                        let val = if count >= *period as usize { sum } else { f64::NAN };
+                        self.push(val)?;
                     }
-                    // If we don't have enough history, return NaN
-                    let val = if count >= *period as usize { sum } else { f64::NAN };
-                    self.push(val)?;
                 }
 
                 Op::JumpIfFalse(target) => {
@@ -229,6 +236,7 @@ mod tests {
             low: 90.0,
             close: 100.0,
             indicators: HashMap::new(),
+            rolling_sums: HashMap::new(),
             history: VecDeque::from(vec![
                 OHLCV {
                     timestamp: 0,
@@ -375,6 +383,7 @@ mod tests {
             low: 90.0,
             close: 100.0,
             indicators: HashMap::new(),
+            rolling_sums: HashMap::new(),
             history: VecDeque::from(vec![
                 OHLCV {
                     timestamp: 0,
@@ -413,6 +422,7 @@ mod tests {
             low: 90.0,
             close: 100.0,
             indicators: HashMap::new(),
+            rolling_sums: HashMap::new(),
             history: VecDeque::from(vec![
                 OHLCV {
                     timestamp: 0,
@@ -489,6 +499,7 @@ mod tests {
             low: 0.0,
             close: 20000.0,
             indicators: HashMap::new(),
+            rolling_sums: HashMap::new(),
             history: VecDeque::from(vec![
                 OHLCV {
                     timestamp: 0,
@@ -633,6 +644,7 @@ mod tests {
             low: 45.0,
             close: 52.0,
             indicators: HashMap::new(),
+            rolling_sums: HashMap::new(),
             history: VecDeque::from(vec![
                 OHLCV { timestamp: 4, open: 50.0, high: 55.0, low: 45.0, close: 52.0, volume: 0.0 }, // current (index 0)
                 OHLCV { timestamp: 3, open: 48.0, high: 53.0, low: 43.0, close: 50.0, volume: 0.0 }, // previous 1

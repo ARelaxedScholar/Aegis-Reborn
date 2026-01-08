@@ -1,4 +1,5 @@
 pub mod backtester;
 pub mod gauntlet;
 pub mod indicators;
+pub mod rolling;
 pub mod walk_forward;
