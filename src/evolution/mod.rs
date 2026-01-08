@@ -1,4 +1,5 @@
 pub mod grammar;
+pub mod indicator_parser;
 pub mod mapper;
 
 use crate::config::{GaConfig, MetricsConfig};
