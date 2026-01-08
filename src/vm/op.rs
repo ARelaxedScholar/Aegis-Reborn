@@ -18,7 +18,6 @@ pub enum Op {
     /// Historical price operations
     PushPrevious(PriceType, u16),      // Push price from N periods ago (0 = current, 1 = previous, etc.)
     PushRollingSum(PriceType, u16),    // Push sum of last N periods of given price type
-    PushRollingMean(PriceType, u16),   // Push mean of last N periods (optional, convenience)
 
     /// The Operators and Comparators
     Add,

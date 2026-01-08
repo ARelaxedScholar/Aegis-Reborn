@@ -173,24 +173,7 @@ impl VirtualMachine {
                     let val = if count >= *period as usize { sum } else { f64::NAN };
                     self.push(val)?;
                 }
-                Op::PushRollingMean(price_type, period) => {
-                    let mut sum = 0.0;
-                    let mut count = 0;
-                    for i in 0..*period {
-                        if let Some(candle) = context.history.get(i as usize) {
-                            sum += match price_type {
-                                PriceType::Open => candle.open,
-                                PriceType::High => candle.high,
-                                PriceType::Low => candle.low,
-                                PriceType::Close => candle.close,
-                            };
-                            count += 1;
-                        }
-                    }
-                    // If we don't have enough history, return NaN
-                    let val = if count >= *period as usize { sum / (*period as f64) } else { f64::NAN };
-                    self.push(val)?;
-                }
+
                 Op::JumpIfFalse(target) => {
                     let condition = self.pop()?;
                     if condition == 0.0 {
@@ -689,13 +672,9 @@ mod tests {
         let result = vm.execute(&program, &context).unwrap();
         assert!(result.is_nan(), "Expected NaN for period beyond history, got {}", result);
 
-        // Test PushRollingMean with period 3 (mean of last 3 closes: 150/3 = 50)
-        let program = vec![PushRollingMean(Close, 3)];
-        assert_eq!(vm.execute(&program, &context).unwrap(), 50.0);
 
-        // Test PushRollingMean with period 5 (mean of all 5 closes: 240/5 = 48)
-        let program = vec![PushRollingMean(Close, 5)];
-        assert_eq!(vm.execute(&program, &context).unwrap(), 48.0);
+
+
 
         // Test different price types (Open)
         let program = vec![PushPrevious(Open, 1)];
