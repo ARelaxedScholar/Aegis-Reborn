@@ -102,30 +102,30 @@ impl TranspilerEngine {
     ) -> String {
         let indicators_init = self.generate_python_indicators_init(dependencies);
         let warm_up_period = self.calculate_warm_up_period(dependencies);
-        
+
         format!(r#"from AlgorithmImports import *
 
 class GoldenAegisAlgorithm(QCAlgorithm):
-    def Initialize(self):
-        self.SetCash({initial_cash})
-        self.SetBrokerageModel(BrokerageName.InteractiveBrokersBrokerage)
-        self.symbol = self.AddEquity("{symbol}", Resolution.{resolution}).Symbol
-        self.SetWarmUp({warm_up_period}, Resolution.{resolution})
-        
+    def initialize(self):
+        self.set_cash({initial_cash})
+        self.set_brokerage_model(BrokerageName.InteractiveBrokersBrokerage)
+        self._symbol = self.add_equity("{symbol}", Resolution.{resolution}).Symbol
+        self.set_warm_up({warm_up_period}, Resolution.{resolution})
+
 {indicators_init}
-    
+
     def evaluate_entry(self, data):
         {entry_code}
-    
+
     {exit_eval}
-    
-    def OnData(self, data):
-        if self.IsWarmingUp:
+
+    def on_data(self, data):
+        if self.is_warming_up:
             return
-        
-        if not self.Portfolio.Invested and self.evaluate_entry(data):
+
+        if not self.Portfolio.invested and self.evaluate_entry(data):
             self.SetHoldings(self.symbol, 1.0)
-        elif self.Portfolio.Invested{exit_condition}:
+        elif self.Portfolio.invested{exit_condition}:
             self.Liquidate(self.symbol)
 "#,
             initial_cash = self.config.initial_cash.unwrap_or(10000.0),
@@ -156,7 +156,7 @@ class GoldenAegisAlgorithm(QCAlgorithm):
     ) -> String {
         let (indicator_fields, indicator_init) = self.generate_csharp_indicator_code(dependencies);
         let warm_up_period = self.calculate_warm_up_period(dependencies);
-        
+
         format!(r#"using System;
 using QuantConnect.Algorithm;
 using QuantConnect.Data;
@@ -166,28 +166,28 @@ namespace QuantConnect.Algorithm.CSharp {{
     public class GoldenAegisAlgorithm : QCAlgorithm
     {{
         {indicator_fields}
-        
+
         public override void Initialize()
         {{
             SetCash({initial_cash});
             SetBrokerageModel(BrokerageName.InteractiveBrokersBrokerage);
             symbol = AddEquity("{symbol}", Resolution.{resolution}).Symbol;
             SetWarmUp({warm_up_period}, Resolution.{resolution});
-            
+
 {indicator_init}
         }}
-        
+
         private bool EvaluateEntry(Slice data)
         {{
             {entry_code}
         }}
-        
+
         {exit_eval}
-        
+
         public override void OnData(Slice data)
         {{
             if (IsWarmingUp) return;
-            
+
             if (!Portfolio.Invested && EvaluateEntry(data))
             {{
                 SetHoldings(symbol, 1.0);
@@ -240,9 +240,9 @@ namespace QuantConnect.Algorithm.CSharp {{
     fn generate_csharp_indicator_code(&self, dependencies: &HashSet<IndicatorType>) -> (String, String) {
         let mut fields = Vec::new();
         let mut init_lines = Vec::new();
-        
+
         fields.push("        private Symbol symbol;".to_string());
-        
+
         for indicator in dependencies {
             match indicator {
                 IndicatorType::Sma(period) => {
@@ -255,11 +255,11 @@ namespace QuantConnect.Algorithm.CSharp {{
                 }
             }
         }
-        
+
         if !fields.is_empty() && fields.len() > 1 {
             fields.insert(1, "".to_string()); // Empty line after symbol field
         }
-        
+
         let fields_str = fields.join("\n");
         let init_str = init_lines.join("\n");
         (fields_str, init_str)
@@ -300,17 +300,17 @@ impl PythonCompiler {
                 }
                 Op::PushPrice(price_type) => {
                     let expr = match price_type {
-                        PriceType::Open => "data[self.symbol].Open".to_string(),
-                        PriceType::High => "data[self.symbol].High".to_string(),
-                        PriceType::Low => "data[self.symbol].Low".to_string(),
-                        PriceType::Close => "data[self.symbol].Close".to_string(),
+                        PriceType::Open => "data[self.symbol].open".to_string(),
+                        PriceType::High => "data[self.symbol].high".to_string(),
+                        PriceType::Low => "data[self.symbol].low".to_string(),
+                        PriceType::Close => "data[self.symbol].close".to_string(),
                     };
                     stack.push(expr);
                 }
                 Op::PushIndicator(indicator_type) => {
                     let expr = match indicator_type {
-                        IndicatorType::Sma(period) => format!("self.sma{}.Current.Value", period),
-                        IndicatorType::Rsi(period) => format!("self.rsi{}.Current.Value", period),
+                        IndicatorType::Sma(period) => format!("self.sma{}.current.value", period),
+                        IndicatorType::Rsi(period) => format!("self.rsi{}.current.value", period),
                     };
                     stack.push(expr);
                 }
@@ -418,11 +418,11 @@ impl PythonCompiler {
         match dynamic_const {
             DynamicConstant::ClosePercent(pct) => {
                 let factor = 1.0 + (*pct as f64 / 100.0);
-                Ok(format!("data[self.symbol].Close * {}", factor))
+                Ok(format!("data[self.symbol].close * {}", factor))
             }
             DynamicConstant::SmaPercent(period, pct) => {
                 let factor = 1.0 + (*pct as f64 / 100.0);
-                Ok(format!("self.sma{}.Current.Value * {}", period, factor))
+                Ok(format!("self.sma{}.current.value * {}", period, factor))
             }
         }
     }
@@ -601,20 +601,20 @@ mod tests {
             transaction_cost_pct: Some(0.001),
             slippage_pct: Some(0.001),
         };
-        
+
         let engine = TranspilerEngine::new(config);
         let strategy = create_test_strategy();
-        
+
         let result = engine.to_python(&strategy);
         assert!(result.is_ok());
         let python_code = result.unwrap();
-        
+
         // Basic sanity checks
         assert!(python_code.contains("class GoldenAegisAlgorithm"));
         assert!(python_code.contains("def evaluate_entry"));
         assert!(python_code.contains("self.sma20 = self.SMA"));
-        assert!(python_code.contains("data[self.symbol].Close"));
-        assert!(python_code.contains("self.sma20.Current.Value"));
+        assert!(python_code.contains("data[self.symbol].close"));
+        assert!(python_code.contains("self.sma20.current.value"));
     }
 
     #[test]
@@ -627,14 +627,14 @@ mod tests {
             transaction_cost_pct: Some(0.001),
             slippage_pct: Some(0.001),
         };
-        
+
         let engine = TranspilerEngine::new(config);
         let strategy = create_test_strategy();
-        
+
         let result = engine.to_c_sharp(&strategy);
         assert!(result.is_ok());
         let csharp_code = result.unwrap();
-        
+
         // Basic sanity checks
         assert!(csharp_code.contains("class GoldenAegisAlgorithm"));
         assert!(csharp_code.contains("EvaluateEntry"));
@@ -662,7 +662,7 @@ mod tests {
             ],
         );
         let strategy = Strategy { programs };
-        
+
         let config = TranspilerConfig {
             symbol: "AAPL".to_string(),
             resolution: "Hour".to_string(),
@@ -671,17 +671,17 @@ mod tests {
             transaction_cost_pct: None,
             slippage_pct: None,
         };
-        
+
         let engine = TranspilerEngine::new(config);
-        
+
         // Test Python
         let python_result = engine.to_python(&strategy);
         assert!(python_result.is_ok());
         let python_code = python_result.unwrap();
         assert!(python_code.contains("self.sma20"));
         assert!(python_code.contains("self.rsi14"));
-        assert!(python_code.contains("data[self.symbol].Close"));
-        
+        assert!(python_code.contains("data[self.symbol].close"));
+
         // Test C#
         let csharp_result = engine.to_c_sharp(&strategy);
         assert!(csharp_result.is_ok());
@@ -705,7 +705,7 @@ mod tests {
             ],
         );
         let strategy = Strategy { programs };
-        
+
         let config = TranspilerConfig {
             symbol: "SPY".to_string(),
             resolution: "Daily".to_string(),
@@ -714,35 +714,35 @@ mod tests {
             transaction_cost_pct: None,
             slippage_pct: None,
         };
-        
+
         let engine = TranspilerEngine::new(config);
-        
+
         // Test Python
         let python_result = engine.to_python(&strategy);
         assert!(python_result.is_ok());
         let python_code = python_result.unwrap();
-        
+
         // Check that evaluate_entry method contains clean expression
         let entry_method_start = python_code.find("def evaluate_entry").unwrap();
         let entry_method_end = python_code[entry_method_start..].find("\n    def").unwrap_or(python_code[entry_method_start..].len());
         let entry_method = &python_code[entry_method_start..entry_method_start + entry_method_end];
-        
+
         // Should not contain temp variable assignments
         assert!(!entry_method.contains("temp"), "Python output contains temp variables: {}", entry_method);
         // Should contain the clean comparison
-        assert!(entry_method.contains("data[self.symbol].Close"));
-        assert!(entry_method.contains("self.sma20.Current.Value"));
-        
+        assert!(entry_method.contains("data[self.symbol].close"));
+        assert!(entry_method.contains("self.sma20.current.value"));
+
         // Test C#
         let csharp_result = engine.to_c_sharp(&strategy);
         assert!(csharp_result.is_ok());
         let csharp_code = csharp_result.unwrap();
-        
+
         // Check that EvaluateEntry method contains clean expression
         let entry_method_start = csharp_code.find("private bool EvaluateEntry").unwrap();
         let entry_method_end = csharp_code[entry_method_start..].find("\n        private").unwrap_or(csharp_code[entry_method_start..].len());
         let entry_method = &csharp_code[entry_method_start..entry_method_start + entry_method_end];
-        
+
         // Should not contain temp variable declarations
         assert!(!entry_method.contains("var temp"), "C# output contains temp variables: {}", entry_method);
         // Should contain the clean comparison with proper ternary
@@ -771,7 +771,7 @@ mod tests {
             ],
         );
         let strategy = Strategy { programs };
-        
+
         let config = TranspilerConfig {
             symbol: "SPY".to_string(),
             resolution: "Daily".to_string(),
@@ -780,9 +780,9 @@ mod tests {
             transaction_cost_pct: None,
             slippage_pct: None,
         };
-        
+
         let engine = TranspilerEngine::new(config);
-        
+
         // Both languages should handle memory ops
         let python_result = engine.to_python(&strategy);
         assert!(python_result.is_ok());
@@ -790,7 +790,7 @@ mod tests {
         // Note: 5.0.to_string() = "5", 3.0.to_string() = "3"
         assert!(python_code.contains("mem0 = 5"), "Python code missing mem0 assignment: {}", python_code);
         assert!(python_code.contains("mem1 = (mem0 + 3)"), "Python code missing mem1 assignment: {}", python_code);
-        
+
         let csharp_result = engine.to_c_sharp(&strategy);
         assert!(csharp_result.is_ok());
         let csharp_code = csharp_result.unwrap();
