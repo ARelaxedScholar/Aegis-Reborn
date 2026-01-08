@@ -22,6 +22,9 @@ impl RollingWindow {
     /// Adds a new value to the window, removing the oldest if window is full.
     /// Returns the current sum after the update.
     pub fn push(&mut self, value: f64) -> f64 {
+        if self.capacity == 0 {
+            return 0.0;
+        }
         self.values.push_front(value);
         self.sum += value;
         
@@ -40,7 +43,7 @@ impl RollingWindow {
 
     /// Returns true if window has reached its capacity.
     pub fn is_full(&self) -> bool {
-        self.values.len() >= self.capacity
+        self.capacity == 0 || self.values.len() >= self.capacity
     }
 
     /// Returns the number of values currently in the window.
