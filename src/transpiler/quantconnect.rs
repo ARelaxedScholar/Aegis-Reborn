@@ -231,6 +231,9 @@ namespace QuantConnect.Algorithm.CSharp {{
                 IndicatorType::Rsi(period) => {
                     lines.push(format!("        self.rsi{} = self.RSI(self.symbol, {})", period, period));
                 }
+                IndicatorType::Ema(period) => {
+                    lines.push(format!("        self.ema{} = self.EMA(self.symbol, {})", period, period));
+                }
             }
         }
         lines.join("\n")
@@ -253,6 +256,10 @@ namespace QuantConnect.Algorithm.CSharp {{
                     fields.push(format!("        private RelativeStrengthIndex rsi{};", period));
                     init_lines.push(format!("            rsi{} = RSI(symbol, {});", period, period));
                 }
+                IndicatorType::Ema(period) => {
+                    fields.push(format!("        private ExponentialMovingAverage ema{};", period));
+                    init_lines.push(format!("            ema{} = EMA(symbol, {});", period, period));
+                }
             }
         }
 
@@ -271,6 +278,7 @@ namespace QuantConnect.Algorithm.CSharp {{
             .map(|indicator| match indicator {
                 IndicatorType::Sma(period) => *period as usize,
                 IndicatorType::Rsi(period) => *period as usize,
+                IndicatorType::Ema(period) => *period as usize,
             })
             .max()
             .unwrap_or(20);
@@ -311,6 +319,7 @@ impl PythonCompiler {
                     let expr = match indicator_type {
                         IndicatorType::Sma(period) => format!("self.sma{}.current.value", period),
                         IndicatorType::Rsi(period) => format!("self.rsi{}.current.value", period),
+                        IndicatorType::Ema(period) => format!("self.ema{}.current.value", period),
                     };
                     stack.push(expr);
                 }
@@ -460,6 +469,7 @@ impl CSharpCompiler {
                     let expr = match indicator_type {
                         IndicatorType::Sma(period) => format!("sma{}.Current.Value", period),
                         IndicatorType::Rsi(period) => format!("rsi{}.Current.Value", period),
+                        IndicatorType::Ema(period) => format!("ema{}.Current.Value", period),
                     };
                     stack.push(expr);
                 }

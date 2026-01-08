@@ -47,6 +47,7 @@ pub enum PriceType {
 pub enum IndicatorType {
     Sma(u16),
     Rsi(u16),
+    Ema(u16),
 }
 
 /// Defines dynamic, relative constants calculated at runtime.

@@ -17,6 +17,7 @@
         rustPkgs = pkgs.rustBuilder.makePackageSet {
           rustVersion = "1.85.0";
           packageFun = import ./Cargo.nix;
+          ignoreLockHash = true;
         };
 
       in rec {

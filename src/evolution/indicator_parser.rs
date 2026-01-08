@@ -19,12 +19,7 @@ pub fn parse_indicator_terminal(terminal: &str) -> Option<IndicatorType> {
         return match name {
             "SMA" => Some(IndicatorType::Sma(period)),
             "RSI" => Some(IndicatorType::Rsi(period)),
-            "EMA" => {
-                // EMA not yet supported; will be added later
-                // For now, treat as SMA (placeholder)
-                warn!("EMA indicator not yet implemented, falling back to SMA");
-                Some(IndicatorType::Sma(period))
-            }
+            "EMA" => Some(IndicatorType::Ema(period)),
             _ => None,
         };
     }
@@ -37,10 +32,7 @@ pub fn parse_indicator_terminal(terminal: &str) -> Option<IndicatorType> {
         return match name {
             "SMA" => Some(IndicatorType::Sma(period)),
             "RSI" => Some(IndicatorType::Rsi(period)),
-            "EMA" => {
-                warn!("EMA indicator not yet implemented, falling back to SMA");
-                Some(IndicatorType::Sma(period))
-            }
+            "EMA" => Some(IndicatorType::Ema(period)),
             _ => None,
         };
     }
@@ -78,26 +70,14 @@ mod tests {
 
     #[test]
     fn test_parse_ema_new_style() {
-        // EMA not yet implemented, should fallback to SMA (placeholder)
-        let result = parse_indicator_terminal("EMA(14)");
-        assert!(result.is_some());
-        // Currently returns SMA, but we accept that for now
-        if let Some(IndicatorType::Sma(period)) = result {
-            assert_eq!(period, 14);
-        } else {
-            panic!("Expected SMA fallback");
-        }
+        assert_eq!(parse_indicator_terminal("EMA(14)"), Some(IndicatorType::Ema(14)));
+        assert_eq!(parse_indicator_terminal("EMA(30)"), Some(IndicatorType::Ema(30)));
     }
 
     #[test]
     fn test_parse_ema_old_style() {
-        let result = parse_indicator_terminal("EMA14");
-        assert!(result.is_some());
-        if let Some(IndicatorType::Sma(period)) = result {
-            assert_eq!(period, 14);
-        } else {
-            panic!("Expected SMA fallback");
-        }
+        assert_eq!(parse_indicator_terminal("EMA14"), Some(IndicatorType::Ema(14)));
+        assert_eq!(parse_indicator_terminal("EMA30"), Some(IndicatorType::Ema(30)));
     }
 
     #[test]
