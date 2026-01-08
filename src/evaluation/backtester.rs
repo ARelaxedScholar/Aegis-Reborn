@@ -273,12 +273,23 @@ impl Backtester {
             indicator_manager.next(candle);
             portfolio.update_equity(candle.close);
 
+            // Build history: current candle at index 0, previous at 1, etc.
+            let mut history = Vec::new();
+            // Include current candle
+            history.push(*candle);
+            // Add previous candles up to a reasonable limit (255)
+            let lookback = i.min(255);
+            for j in 1..=lookback {
+                history.push(candles[i - j]);
+            }
+            
             let mut context = VmContext {
                 open: candle.open,
                 high: candle.high,
                 low: candle.low,
                 close: candle.close,
                 indicators: HashMap::new(),
+                history,
             };
             indicator_manager.populate_context(&mut context);
 

@@ -2,7 +2,7 @@ use crate::evolution::grammar::Grammar;
 use crate::evolution::indicator_parser::parse_indicator_terminal;
 use crate::evolution::Genome;
 use crate::strategy::Strategy;
-use crate::vm::op::{DynamicConstant, IndicatorType, Op, PriceType};
+use crate::vm::op::{DynamicConstant, Op, PriceType};
 use std::collections::HashMap;
 use thiserror::Error;
 

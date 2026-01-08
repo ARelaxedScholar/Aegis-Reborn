@@ -1,3 +1,4 @@
+use crate::data::OHLCV;
 use crate::vm::op::{DynamicConstant, IndicatorType, Op, PriceType};
 use std::collections::HashMap;
 
@@ -10,6 +11,10 @@ pub struct VmContext {
     pub low: f64,
     pub close: f64,
     pub indicators: HashMap<IndicatorType, f64>,
+    /// Historical OHLCV data for the last N periods (including current).
+    /// Index 0 is current candle, index 1 is previous candle, etc.
+    /// Length should be at least max(required historical lookback).
+    pub history: Vec<OHLCV>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -130,6 +135,62 @@ impl VirtualMachine {
                         .unwrap_or(f64::NAN);
                     self.push(val)?;
                 }
+                Op::PushPrevious(price_type, offset) => {
+                    let val = if *offset == 0 {
+                        match price_type {
+                            PriceType::Open => context.open,
+                            PriceType::High => context.high,
+                            PriceType::Low => context.low,
+                            PriceType::Close => context.close,
+                        }
+                    } else if let Some(candle) = context.history.get(*offset as usize) {
+                        match price_type {
+                            PriceType::Open => candle.open,
+                            PriceType::High => candle.high,
+                            PriceType::Low => candle.low,
+                            PriceType::Close => candle.close,
+                        }
+                    } else {
+                        f64::NAN
+                    };
+                    self.push(val)?;
+                }
+                Op::PushRollingSum(price_type, period) => {
+                    let mut sum = 0.0;
+                    let mut count = 0;
+                    for i in 0..*period {
+                        if let Some(candle) = context.history.get(i as usize) {
+                            sum += match price_type {
+                                PriceType::Open => candle.open,
+                                PriceType::High => candle.high,
+                                PriceType::Low => candle.low,
+                                PriceType::Close => candle.close,
+                            };
+                            count += 1;
+                        }
+                    }
+                    // If we don't have enough history, return NaN
+                    let val = if count >= *period as usize { sum } else { f64::NAN };
+                    self.push(val)?;
+                }
+                Op::PushRollingMean(price_type, period) => {
+                    let mut sum = 0.0;
+                    let mut count = 0;
+                    for i in 0..*period {
+                        if let Some(candle) = context.history.get(i as usize) {
+                            sum += match price_type {
+                                PriceType::Open => candle.open,
+                                PriceType::High => candle.high,
+                                PriceType::Low => candle.low,
+                                PriceType::Close => candle.close,
+                            };
+                            count += 1;
+                        }
+                    }
+                    // If we don't have enough history, return NaN
+                    let val = if count >= *period as usize { sum / (*period as f64) } else { f64::NAN };
+                    self.push(val)?;
+                }
                 Op::JumpIfFalse(target) => {
                     let condition = self.pop()?;
                     if condition == 0.0 {
@@ -185,6 +246,16 @@ mod tests {
             low: 90.0,
             close: 100.0,
             indicators: HashMap::new(),
+            history: vec![
+                OHLCV {
+                    timestamp: 0,
+                    open: 95.0,
+                    high: 105.0,
+                    low: 90.0,
+                    close: 100.0,
+                    volume: 0.0,
+                },
+            ],
         }
     }
 
@@ -321,6 +392,16 @@ mod tests {
             low: 90.0,
             close: 100.0,
             indicators: HashMap::new(),
+            history: vec![
+                OHLCV {
+                    timestamp: 0,
+                    open: 95.0,
+                    high: 105.0,
+                    low: 90.0,
+                    close: 100.0,
+                    volume: 0.0,
+                },
+            ],
         };
 
         // Test accessing close price
@@ -349,6 +430,16 @@ mod tests {
             low: 90.0,
             close: 100.0,
             indicators: HashMap::new(),
+            history: vec![
+                OHLCV {
+                    timestamp: 0,
+                    open: 95.0,
+                    high: 105.0,
+                    low: 90.0,
+                    close: 100.0,
+                    volume: 0.0,
+                },
+            ],
         };
 
         // Calculate typical price: (high + low + close) / 3
@@ -415,6 +506,16 @@ mod tests {
             low: 0.0,
             close: 20000.0,
             indicators: HashMap::new(),
+            history: vec![
+                OHLCV {
+                    timestamp: 0,
+                    open: 0.0,
+                    high: 0.0,
+                    low: 0.0,
+                    close: 20000.0,
+                    volume: 0.0,
+                },
+            ],
         };
         context.indicators.insert(IndicatorType::Sma(20), 19500.0);
 
@@ -534,5 +635,74 @@ mod tests {
         let result4 = vm.execute(&program4, &context);
         dbg!(&result4);
         assert_eq!(result4.unwrap(), 100.0);
+    }
+
+    #[test]
+    fn test_historical_operations() {
+        use crate::vm::op::Op::*;
+        use crate::vm::op::PriceType::*;
+        
+        // Create a context with 5 candles of history
+        let mut vm = VirtualMachine::new();
+        let context = VmContext {
+            open: 50.0,
+            high: 55.0,
+            low: 45.0,
+            close: 52.0,
+            indicators: HashMap::new(),
+            history: vec![
+                OHLCV { timestamp: 4, open: 50.0, high: 55.0, low: 45.0, close: 52.0, volume: 0.0 }, // current (index 0)
+                OHLCV { timestamp: 3, open: 48.0, high: 53.0, low: 43.0, close: 50.0, volume: 0.0 }, // previous 1
+                OHLCV { timestamp: 2, open: 46.0, high: 51.0, low: 41.0, close: 48.0, volume: 0.0 }, // previous 2
+                OHLCV { timestamp: 1, open: 44.0, high: 49.0, low: 39.0, close: 46.0, volume: 0.0 }, // previous 3
+                OHLCV { timestamp: 0, open: 42.0, high: 47.0, low: 37.0, close: 44.0, volume: 0.0 }, // previous 4
+            ],
+        };
+
+        // Test PushPrevious with offset 0 (current close)
+        let program = vec![PushPrevious(Close, 0)];
+        assert_eq!(vm.execute(&program, &context).unwrap(), 52.0);
+
+        // Test PushPrevious with offset 1 (previous close)
+        let program = vec![PushPrevious(Close, 1)];
+        assert_eq!(vm.execute(&program, &context).unwrap(), 50.0);
+
+        // Test PushPrevious with offset 4 (oldest close)
+        let program = vec![PushPrevious(Close, 4)];
+        assert_eq!(vm.execute(&program, &context).unwrap(), 44.0);
+
+        // Test PushPrevious with offset 5 (beyond history) -> NaN
+        let program = vec![PushPrevious(Close, 5)];
+        let result = vm.execute(&program, &context).unwrap();
+        assert!(result.is_nan(), "Expected NaN for offset beyond history, got {}", result);
+
+        // Test PushRollingSum with period 3 (sum of last 3 closes: 52 + 50 + 48 = 150)
+        let program = vec![PushRollingSum(Close, 3)];
+        assert_eq!(vm.execute(&program, &context).unwrap(), 150.0);
+
+        // Test PushRollingSum with period 5 (sum of all 5 closes: 52+50+48+46+44 = 240)
+        let program = vec![PushRollingSum(Close, 5)];
+        assert_eq!(vm.execute(&program, &context).unwrap(), 240.0);
+
+        // Test PushRollingSum with period 6 (beyond history) -> NaN
+        let program = vec![PushRollingSum(Close, 6)];
+        let result = vm.execute(&program, &context).unwrap();
+        assert!(result.is_nan(), "Expected NaN for period beyond history, got {}", result);
+
+        // Test PushRollingMean with period 3 (mean of last 3 closes: 150/3 = 50)
+        let program = vec![PushRollingMean(Close, 3)];
+        assert_eq!(vm.execute(&program, &context).unwrap(), 50.0);
+
+        // Test PushRollingMean with period 5 (mean of all 5 closes: 240/5 = 48)
+        let program = vec![PushRollingMean(Close, 5)];
+        assert_eq!(vm.execute(&program, &context).unwrap(), 48.0);
+
+        // Test different price types (Open)
+        let program = vec![PushPrevious(Open, 1)];
+        assert_eq!(vm.execute(&program, &context).unwrap(), 48.0);
+
+        // Test rolling sum with Open
+        let program = vec![PushRollingSum(Open, 2)]; // 50 + 48 = 98
+        assert_eq!(vm.execute(&program, &context).unwrap(), 98.0);
     }
 }

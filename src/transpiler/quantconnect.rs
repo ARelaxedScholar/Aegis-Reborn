@@ -354,6 +354,11 @@ impl PythonCompiler {
                     let val = stack.pop().ok_or(TranspilerError::StackUnderflow)?;
                     stack.push(format!("(1.0 if {} == 0.0 else 0.0)", val));
                 }
+                Op::PushPrevious(_, _) | Op::PushRollingSum(_, _) | Op::PushRollingMean(_, _) => {
+                    return Err(TranspilerError::UnsupportedOp(
+                        format!("Historical price op {:?} not yet supported in transpiler", op)
+                    ));
+                }
                 Op::JumpIfFalse(_) | Op::Jump(_) | Op::Return => {
                     return Err(TranspilerError::UnsupportedOp(
                         format!("Control flow op {:?} not yet supported", op)
@@ -503,6 +508,11 @@ impl CSharpCompiler {
                 Op::Not => {
                     let val = stack.pop().ok_or(TranspilerError::StackUnderflow)?;
                     stack.push(format!("({} == 0.0 ? 1.0 : 0.0)", val));
+                }
+                Op::PushPrevious(_, _) | Op::PushRollingSum(_, _) | Op::PushRollingMean(_, _) => {
+                    return Err(TranspilerError::UnsupportedOp(
+                        format!("Historical price op {:?} not yet supported in transpiler", op)
+                    ));
                 }
                 Op::JumpIfFalse(_) | Op::Jump(_) | Op::Return => {
                     return Err(TranspilerError::UnsupportedOp(
