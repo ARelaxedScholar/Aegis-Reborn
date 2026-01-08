@@ -5,7 +5,7 @@ use crate::vm::engine::{VirtualMachine, VmContext};
 use crate::vm::op::{IndicatorType, Op};
 use log::warn;
 use serde::Serialize;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Struct representing our current position
 /// at any given tiem during the backtest
@@ -107,6 +107,34 @@ pub fn get_required_indicators(strategy: &Strategy) -> Vec<IndicatorType> {
         }
     }
     indicators.into_iter().collect()
+}
+
+/// Scans all programs in a strategy to find the maximum historical lookback required.
+///
+/// # Arguments
+/// * `strategy` - A reference to a `Strategy` struct that we'll scan to prepare history buffer
+///
+/// # Returns
+/// `usize` representing the maximum offset/period needed for historical operations
+pub fn get_required_history_lookback(strategy: &Strategy) -> usize {
+    let mut max_lookback = 0;
+    for program in strategy.programs.values() {
+        for op in program {
+            match op {
+                Op::PushPrevious(_, offset) => {
+                    max_lookback = max_lookback.max(*offset as usize);
+                }
+                Op::PushRollingSum(_, period) => {
+                    if *period > 0 {
+                        // Need period candles: indices 0..period-1
+                        max_lookback = max_lookback.max((*period as usize) - 1);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    max_lookback
 }
 
 /// Calculates the annualized return based on the equity curve.
@@ -269,27 +297,26 @@ impl Backtester {
         let required_indicators = get_required_indicators(strategy);
         let mut indicator_manager = IndicatorManager::new(&required_indicators);
 
+        let max_lookback = get_required_history_lookback(strategy);
+        let mut history_buffer = VecDeque::with_capacity(max_lookback + 1);
+
         for (i, candle) in candles.iter().enumerate() {
             indicator_manager.next(candle);
             portfolio.update_equity(candle.close);
 
-            // Build history: current candle at index 0, previous at 1, etc.
-            let mut history = Vec::new();
-            // Include current candle
-            history.push(*candle);
-            // Add previous candles up to a reasonable limit (255)
-            let lookback = i.min(255);
-            for j in 1..=lookback {
-                history.push(candles[i - j]);
+            // Update history buffer incrementally (index 0 = current, 1 = previous, etc.)
+            history_buffer.push_front(*candle);
+            if history_buffer.len() > max_lookback + 1 {
+                history_buffer.pop_back();
             }
-            
+
             let mut context = VmContext {
                 open: candle.open,
                 high: candle.high,
                 low: candle.low,
                 close: candle.close,
                 indicators: HashMap::new(),
-                history,
+                history: history_buffer.clone(),
             };
             indicator_manager.populate_context(&mut context);
 

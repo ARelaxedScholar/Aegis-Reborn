@@ -1,6 +1,6 @@
 use crate::data::OHLCV;
 use crate::vm::op::{DynamicConstant, IndicatorType, Op, PriceType};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 const STACK_CAPACITY: usize = 256;
 const MEMORY_SIZE: usize = 16;
@@ -14,7 +14,7 @@ pub struct VmContext {
     /// Historical OHLCV data for the last N periods (including current).
     /// Index 0 is current candle, index 1 is previous candle, etc.
     /// Length should be at least max(required historical lookback).
-    pub history: Vec<OHLCV>,
+    pub history: VecDeque<OHLCV>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -229,7 +229,7 @@ mod tests {
             low: 90.0,
             close: 100.0,
             indicators: HashMap::new(),
-            history: vec![
+            history: VecDeque::from(vec![
                 OHLCV {
                     timestamp: 0,
                     open: 95.0,
@@ -238,7 +238,7 @@ mod tests {
                     close: 100.0,
                     volume: 0.0,
                 },
-            ],
+            ]),
         }
     }
 
@@ -375,7 +375,7 @@ mod tests {
             low: 90.0,
             close: 100.0,
             indicators: HashMap::new(),
-            history: vec![
+            history: VecDeque::from(vec![
                 OHLCV {
                     timestamp: 0,
                     open: 95.0,
@@ -384,7 +384,7 @@ mod tests {
                     close: 100.0,
                     volume: 0.0,
                 },
-            ],
+            ]),
         };
 
         // Test accessing close price
@@ -413,7 +413,7 @@ mod tests {
             low: 90.0,
             close: 100.0,
             indicators: HashMap::new(),
-            history: vec![
+            history: VecDeque::from(vec![
                 OHLCV {
                     timestamp: 0,
                     open: 95.0,
@@ -422,7 +422,7 @@ mod tests {
                     close: 100.0,
                     volume: 0.0,
                 },
-            ],
+            ]),
         };
 
         // Calculate typical price: (high + low + close) / 3
@@ -489,16 +489,16 @@ mod tests {
             low: 0.0,
             close: 20000.0,
             indicators: HashMap::new(),
-            history: vec![
+            history: VecDeque::from(vec![
                 OHLCV {
                     timestamp: 0,
-                    open: 0.0,
-                    high: 0.0,
-                    low: 0.0,
-                    close: 20000.0,
+                    open: 95.0,
+                    high: 105.0,
+                    low: 90.0,
+                    close: 100.0,
                     volume: 0.0,
                 },
-            ],
+            ]),
         };
         context.indicators.insert(IndicatorType::Sma(20), 19500.0);
 
@@ -633,13 +633,13 @@ mod tests {
             low: 45.0,
             close: 52.0,
             indicators: HashMap::new(),
-            history: vec![
+            history: VecDeque::from(vec![
                 OHLCV { timestamp: 4, open: 50.0, high: 55.0, low: 45.0, close: 52.0, volume: 0.0 }, // current (index 0)
                 OHLCV { timestamp: 3, open: 48.0, high: 53.0, low: 43.0, close: 50.0, volume: 0.0 }, // previous 1
                 OHLCV { timestamp: 2, open: 46.0, high: 51.0, low: 41.0, close: 48.0, volume: 0.0 }, // previous 2
                 OHLCV { timestamp: 1, open: 44.0, high: 49.0, low: 39.0, close: 46.0, volume: 0.0 }, // previous 3
                 OHLCV { timestamp: 0, open: 42.0, high: 47.0, low: 37.0, close: 44.0, volume: 0.0 }, // previous 4
-            ],
+            ]),
         };
 
         // Test PushPrevious with offset 0 (current close)
