@@ -56,7 +56,8 @@
 # 3. Add the corresponding bytecode operation in `src/vm/op.rs` and implement
 #    its execution in `src/vm/engine.rs`.
 # 4. Update the mapper (`src/evolution/mapper.rs`) to recognize the new symbol.
-<indicator> ::= SMA20 | SMA100 | RSI14
+# Note: Both old-style (SMA20) and new-style (SMA(20)) syntax are supported.
+<indicator> ::= SMA20 | SMA50 | SMA100 | SMA200 | EMA20 | EMA50 | EMA100 | EMA200 | RSI14 | RSI30 | SMA(20) | SMA(50) | SMA(100) | SMA(200) | EMA(20) | EMA(50) | EMA(100) | EMA(200) | RSI(14) | RSI(30)
 
 # Price series available for comparison.
 <price> ::= OPEN | HIGH | LOW | CLOSE

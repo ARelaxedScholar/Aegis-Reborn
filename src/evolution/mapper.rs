@@ -1,4 +1,5 @@
 use crate::evolution::grammar::Grammar;
+use crate::evolution::indicator_parser::parse_indicator_terminal;
 use crate::evolution::Genome;
 use crate::strategy::Strategy;
 use crate::vm::op::{DynamicConstant, IndicatorType, Op, PriceType};
@@ -251,14 +252,18 @@ impl<'a> GrammarBasedMapper<'a> {
             "OPEN" => Some(Op::PushPrice(PriceType::Open)),
             "HIGH" => Some(Op::PushPrice(PriceType::High)),
             "LOW" => Some(Op::PushPrice(PriceType::Low)),
-            "SMA20" => Some(Op::PushIndicator(IndicatorType::Sma(20))),
-            "SMA100" => Some(Op::PushIndicator(IndicatorType::Sma(100))),
-            "RSI14" => Some(Op::PushIndicator(IndicatorType::Rsi(14))),
             "CLOSE_P1" => Some(Op::PushDynamic(DynamicConstant::ClosePercent(1))),
             "CLOSE_M1" => Some(Op::PushDynamic(DynamicConstant::ClosePercent(-1))),
             "SMA20_P2" => Some(Op::PushDynamic(DynamicConstant::SmaPercent(20, 2))),
             "SMA20_M2" => Some(Op::PushDynamic(DynamicConstant::SmaPercent(20, -2))),
-            c => c.parse::<f64>().ok().map(Op::PushConstant),
+            c => {
+                // Try to parse as indicator first (supports SMA(20), SMA20, EMA(14), etc.)
+                if let Some(indicator_type) = parse_indicator_terminal(c) {
+                    return Some(Op::PushIndicator(indicator_type));
+                }
+                // Fall back to numeric constant
+                c.parse::<f64>().ok().map(Op::PushConstant)
+            }
         }
     }
 }
