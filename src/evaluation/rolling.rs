@@ -96,6 +96,8 @@ impl RollingWindowManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::{HashMap, VecDeque};
+    use crate::vm::engine::VmContext;
     
     #[test]
     fn test_rolling_window_basic() {
@@ -117,5 +119,74 @@ mod tests {
         window.push(4.0);
         assert_eq!(window.current_sum(), 9.0); // 2+3+4
         assert_eq!(window.len(), 3);
+    }
+    
+    #[test]
+    fn test_rolling_window_manager() {
+        use crate::vm::op::PriceType;
+        
+        let required_sums = vec![
+            (PriceType::Close, 3),
+            (PriceType::Open, 2),
+        ];
+        let mut manager = RollingWindowManager::new(&required_sums);
+        
+        // Create a simple candle
+        let candle1 = OHLCV {
+            timestamp: 0,
+            open: 10.0,
+            high: 15.0,
+            low: 5.0,
+            close: 12.0,
+            volume: 100.0,
+        };
+        let candle2 = OHLCV {
+            timestamp: 1,
+            open: 11.0,
+            high: 16.0,
+            low: 6.0,
+            close: 13.0,
+            volume: 110.0,
+        };
+        let candle3 = OHLCV {
+            timestamp: 2,
+            open: 12.0,
+            high: 17.0,
+            low: 7.0,
+            close: 14.0,
+            volume: 120.0,
+        };
+        
+        // Update with first candle
+        manager.next(&candle1);
+        // Windows not full yet, values should be NaN
+        let mut context = VmContext {
+            open: 0.0,
+            high: 0.0,
+            low: 0.0,
+            close: 0.0,
+            indicators: HashMap::new(),
+            rolling_sums: HashMap::new(),
+            history: VecDeque::new(),
+        };
+        manager.populate_context(&mut context);
+        assert!(context.rolling_sums.get(&(PriceType::Close, 3)).unwrap().is_nan());
+        assert!(context.rolling_sums.get(&(PriceType::Open, 2)).unwrap().is_nan());
+        
+        // Second candle
+        manager.next(&candle2);
+        manager.populate_context(&mut context);
+        // Open window of period 2 should now be full: 10.0 + 11.0 = 21.0
+        assert_eq!(context.rolling_sums.get(&(PriceType::Open, 2)).unwrap(), &21.0);
+        // Close window period 3 still not full
+        assert!(context.rolling_sums.get(&(PriceType::Close, 3)).unwrap().is_nan());
+        
+        // Third candle
+        manager.next(&candle3);
+        manager.populate_context(&mut context);
+        // Close window now full: 12 + 13 + 14 = 39.0
+        assert_eq!(context.rolling_sums.get(&(PriceType::Close, 3)).unwrap(), &39.0);
+        // Open window now contains 11 + 12 = 23.0 (shifted)
+        assert_eq!(context.rolling_sums.get(&(PriceType::Open, 2)).unwrap(), &23.0);
     }
 }
