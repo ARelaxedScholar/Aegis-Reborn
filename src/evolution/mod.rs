@@ -442,22 +442,30 @@ impl<'a> EvolutionEngine<'a> {
         }
         let mut rng = rng();
 
-        // allows taking none, all, and everything in between
-        let cut1 = rng.random_range(0..=parent1.len());
-        let cut2 = rng.random_range(0..=parent2.len());
+        // Try to generate non-empty children
+        for _ in 0..10 {
+            let cut1 = rng.random_range(0..=parent1.len());
+            let cut2 = rng.random_range(0..=parent2.len());
 
-        vec![
-            parent1[..cut1]
+            let child1: Genome = parent1[..cut1]
                 .iter()
                 .chain(&parent2[cut2..])
                 .cloned()
-                .collect(),
-            parent2[..cut2]
+                .collect();
+
+            let child2: Genome = parent2[..cut2]
                 .iter()
                 .chain(&parent1[cut1..])
                 .cloned()
-                .collect(),
-        ]
+                .collect();
+
+            if !child1.is_empty() && !child2.is_empty() {
+                return vec![child1, child2];
+            }
+        }
+
+        // Fallback if we fail to generate non-empty children (unlikely)
+        vec![parent1.clone(), parent2.clone()]
     }
 
     /// Mutates a given genome

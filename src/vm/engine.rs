@@ -24,6 +24,7 @@ pub enum VmError {
     StackUnderflow,
     MemoryOutOfBounds(u8),
     InvalidProgram,
+    InvalidOperation(String),
 }
 
 pub struct VirtualMachine {
@@ -193,6 +194,9 @@ impl VirtualMachine {
                     pc = *target;
                 }
                 Op::Return => break,
+                Op::StopLossMarker | Op::TakeProfitMarker | Op::SizeMarker => {
+                    return Err(VmError::InvalidOperation("Marker Op encountered during execution".to_string()));
+                }
             }
         }
         self.pop().or(Err(VmError::InvalidProgram))

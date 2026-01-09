@@ -188,4 +188,38 @@ mod tests {
         let result = Grammar::new(&file_path);
         assert!(matches!(result, Err(GrammarError::UndefinedNonTerminal(s)) if s == "<undefined>"));
     }
+
+    #[test]
+    fn test_default_grammar_contains_dynamic_periods() {
+        // Load the project's default grammar.bnf file
+        let grammar_path = Path::new("grammar.bnf");
+        let grammar = Grammar::new(grammar_path).expect("Failed to load default grammar.bnf");
+        
+        // Ensure dynamic period productions exist
+        assert!(grammar.rules.contains_key("<sma_indicator>"));
+        assert!(grammar.rules.contains_key("<ema_indicator>"));
+        assert!(grammar.rules.contains_key("<rsi_indicator>"));
+        assert!(grammar.rules.contains_key("<period>"));
+        
+        // Check that <period> productions include values 10..=200 step 10
+        let period_productions = grammar.rules.get("<period>").unwrap();
+        let expected_periods: Vec<String> = (10..=200).step_by(10).map(|p| p.to_string()).collect();
+        for expected in expected_periods {
+            assert!(period_productions.iter().any(|prod| prod.len() == 1 && prod[0] == expected),
+                "Period {} not found in grammar", expected);
+        }
+        
+        // Check that <indicator> includes both old and new styles
+        let indicator_productions = grammar.rules.get("<indicator>").unwrap();
+        // Should contain at least SMA20, SMA50, SMA100, SMA200, EMA20, EMA50, EMA100, EMA200, RSI14, RSI30
+        let expected_old = vec!["SMA20", "SMA50", "SMA100", "SMA200", "EMA20", "EMA50", "EMA100", "EMA200", "RSI14", "RSI30"];
+        for old in expected_old {
+            assert!(indicator_productions.iter().any(|prod| prod.len() == 1 && prod[0] == old),
+                "Old-style indicator {} not found in grammar", old);
+        }
+        // Should contain references to dynamic productions
+        assert!(indicator_productions.iter().any(|prod| prod.len() == 1 && prod[0] == "<sma_indicator>"));
+        assert!(indicator_productions.iter().any(|prod| prod.len() == 1 && prod[0] == "<ema_indicator>"));
+        assert!(indicator_productions.iter().any(|prod| prod.len() == 1 && prod[0] == "<rsi_indicator>"));
+    }
 }

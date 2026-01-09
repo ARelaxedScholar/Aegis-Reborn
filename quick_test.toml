@@ -1,0 +1,29 @@
+# Quick test configuration
+grammar_file = "grammar.bnf"
+
+[data]
+file_path = "data/BTC-USD.csv"
+hold_out_split = 0.3
+
+[ga]
+population_size = 10
+num_generations = 2
+mutation_rate = 0.25
+crossover_rate = 0.9
+tournament_size = 3
+initial_genome_length = 50
+max_program_tokens = 50
+max_recursion_depth = 50
+parsimony_penalty = 0.001
+alpha = 0.01
+size_of_council = 2
+
+test_window_size = 21
+
+[metrics]
+initial_cash = 10_000.0
+annualization_rate = 252.0
+risk_free_rate = 0.02
+bootstrap_runs = 10
+transaction_cost_pct = 0.001
+slippage_pct = 0.001

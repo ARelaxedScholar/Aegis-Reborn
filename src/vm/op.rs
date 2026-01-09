@@ -37,6 +37,11 @@ pub enum Op {
     JumpIfFalse(usize),
     Jump(usize),
     Return,
+
+    /// Phase 2 Markers
+    StopLossMarker,
+    TakeProfitMarker,
+    SizeMarker,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

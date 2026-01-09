@@ -302,7 +302,7 @@ impl PythonCompiler {
 
         for op in ops {
             match op {
-                Op::EntryMarker | Op::ExitMarker => continue,
+                Op::EntryMarker | Op::ExitMarker | Op::StopLossMarker | Op::TakeProfitMarker | Op::SizeMarker => continue,
                 Op::PushConstant(val) => {
                     stack.push(val.to_string());
                 }
@@ -457,7 +457,7 @@ impl CSharpCompiler {
 
         for op in ops {
             match op {
-                Op::EntryMarker | Op::ExitMarker => continue,
+                Op::EntryMarker | Op::ExitMarker | Op::StopLossMarker | Op::TakeProfitMarker | Op::SizeMarker => continue,
                 Op::PushConstant(val) => {
                     stack.push(val.to_string());
                 }
