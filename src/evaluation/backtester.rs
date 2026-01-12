@@ -348,7 +348,7 @@ impl Backtester {
                     if candle.open > 0.0 {
                         // --- IS-LITE: APPLY ENTRY FRICTION ---
                         // Use size_pct from the pending order (default to 1.0 if not specified or invalid)
-                        let size_pct = order.size_pct.clamp(0.01, 1.0);
+                        let size_pct = order.size_pct;
                         let investable_cash = portfolio.cash * size_pct * (1.0 - transaction_cost_pct);
                         let entry_price = candle.open * (1.0 + slippage_pct);
 
@@ -491,7 +491,8 @@ impl Backtester {
                         Ok(signal) if signal > 0.0 => {
                             // Calculate Size
                             let size_pct = if let Some(size_prog) = strategy.programs.get("position_sizing") {
-                                self.vm.execute(size_prog, &context).unwrap_or(1.0)
+                                let raw_size = self.vm.execute(size_prog, &context).unwrap_or(1.0);
+                                raw_size.clamp(0.0, 1.0)
                             } else {
                                 1.0
                             };
@@ -800,6 +801,51 @@ mod tests {
     }
 
     #[test]
+    fn test_position_sizing_clamping() {
+        let candles = vec![
+            OHLCV {
+                open: 100.0,
+                close: 100.0,
+                ..Default::default()
+            },
+            OHLCV {
+                open: 100.0,
+                close: 110.0,
+                ..Default::default()
+            },
+        ];
+        let mut backtester = Backtester::new();
+
+        // Case 1: Huge Position Size (should be clamped to 1.0)
+        let mut programs_huge = HashMap::new();
+        programs_huge.insert("entry".to_string(), vec![PushConstant(1.0)]);
+        programs_huge.insert("position_sizing".to_string(), vec![PushConstant(300.0)]); // 30000%
+        let strategy_huge = Strategy { programs: programs_huge };
+
+        let result_huge = backtester.run(&candles, &strategy_huge, 0.02, 10000.0, 252.0, 0.0, 0.0);
+        
+        // Should invest max 100% of cash.
+        // Shares = 10000 / 100 = 100.
+        // Final Equity = 100 * 110 = 11000.
+        // If it used 300.0, it would be 30000 / 100 = 300 shares -> 33000 equity.
+        assert!((result_huge.final_equity - 11000.0).abs() < 1e-2, "Huge size failed: expected 11000, got {}", result_huge.final_equity);
+
+
+        // Case 2: Zero Position Size (should be clamped to 0.0, currently 0.01)
+        let mut programs_zero = HashMap::new();
+        programs_zero.insert("entry".to_string(), vec![PushConstant(1.0)]);
+        programs_zero.insert("position_sizing".to_string(), vec![PushConstant(0.0)]);
+        let strategy_zero = Strategy { programs: programs_zero };
+
+        let result_zero = backtester.run(&candles, &strategy_zero, 0.02, 10000.0, 252.0, 0.0, 0.0);
+
+        // Should invest 0% of cash.
+        // Final Equity = 10000.
+        // Current buggy behavior: clamps to 0.01 -> invests 100 -> shares = 1 -> final = 10000 - 100 + 110 = 10010.
+        assert!((result_zero.final_equity - 10000.0).abs() < 1e-2, "Zero size failed: expected 10000, got {}", result_zero.final_equity);
+    }
+
+    #[test]
     fn test_slippage_impact() {
         let candles = vec![
             OHLCV {
@@ -923,5 +969,45 @@ mod tests {
         // Total Cash = 5000 + 4500 = 9500.
         
         assert_eq!(result.final_equity, 9500.0);
+    }
+    #[test]
+    fn test_complex_indicators() {
+        // Create enough candles for indicators to warm up (20 periods)
+        let mut candles = Vec::new();
+        for i in 0..50 {
+            candles.push(OHLCV {
+                open: 100.0 + i as f64,
+                high: 105.0 + i as f64,
+                low: 95.0 + i as f64,
+                close: 100.0 + i as f64,
+                volume: 1000.0,
+                timestamp: chrono::Utc::now().timestamp(),
+            });
+        }
+
+        let mut backtester = Backtester::new();
+        let mut programs = HashMap::new();
+        
+        // Entry: Close > BB_UPPER(20, 2) AND Close > DC_MIDDLE(20)
+        programs.insert(
+            "entry".to_string(),
+            vec![
+                Op::PushPrice(PriceType::Close),
+                Op::PushIndicator(IndicatorType::BbUpper(20, 2)),
+                Op::GreaterThan,
+                Op::PushPrice(PriceType::Close),
+                Op::PushIndicator(IndicatorType::DcMiddle(20)),
+                Op::GreaterThan,
+                Op::And,
+            ],
+        );
+
+        let strategy = Strategy { programs };
+
+        let result = backtester.run(&candles, &strategy, 0.0, 10000.0, 252.0, 0.0, 0.0);
+
+        // We just want to ensure no runtime errors occurred during indicator evaluation
+        assert_eq!(result.entry_error_count, 0);
+        assert_eq!(result.exit_error_count, 0);
     }
 }

@@ -190,36 +190,48 @@ mod tests {
     }
 
     #[test]
-    fn test_default_grammar_contains_dynamic_periods() {
+    fn test_walk_phase_grammar_structure() {
         // Load the project's default grammar.bnf file
         let grammar_path = Path::new("grammar.bnf");
         let grammar = Grammar::new(grammar_path).expect("Failed to load default grammar.bnf");
         
-        // Ensure dynamic period productions exist
-        assert!(grammar.rules.contains_key("<sma_indicator>"));
-        assert!(grammar.rules.contains_key("<ema_indicator>"));
-        assert!(grammar.rules.contains_key("<rsi_indicator>"));
-        assert!(grammar.rules.contains_key("<period>"));
+        // Ensure new Walk Phase constructs exist
+        assert!(grammar.rules.contains_key("<signal_logic>"));
+        assert!(grammar.rules.contains_key("<position_sizing>"));
+        assert!(grammar.rules.contains_key("<stop_loss>"));
+        assert!(grammar.rules.contains_key("<take_profit>"));
         
-        // Check that <period> productions include values 10..=200 step 10
+        // Check that <period> productions match the new restricted set
         let period_productions = grammar.rules.get("<period>").unwrap();
-        let expected_periods: Vec<String> = (10..=200).step_by(10).map(|p| p.to_string()).collect();
+        let expected_periods = vec!["10", "14", "20", "50", "100", "200"];
         for expected in expected_periods {
             assert!(period_productions.iter().any(|prod| prod.len() == 1 && prod[0] == expected),
                 "Period {} not found in grammar", expected);
         }
-        
-        // Check that <indicator> includes both old and new styles
-        let indicator_productions = grammar.rules.get("<indicator>").unwrap();
-        // Should contain at least SMA20, SMA50, SMA100, SMA200, EMA20, EMA50, EMA100, EMA200, RSI14, RSI30
-        let expected_old = vec!["SMA20", "SMA50", "SMA100", "SMA200", "EMA20", "EMA50", "EMA100", "EMA200", "RSI14", "RSI30"];
-        for old in expected_old {
-            assert!(indicator_productions.iter().any(|prod| prod.len() == 1 && prod[0] == old),
-                "Old-style indicator {} not found in grammar", old);
+
+        // Check that <std_dev> productions include 1, 2, 3
+        let std_dev_productions = grammar.rules.get("<std_dev>").unwrap();
+        let expected_std_devs = vec!["1", "2", "3"];
+        for expected in expected_std_devs {
+            assert!(std_dev_productions.iter().any(|prod| prod.len() == 1 && prod[0] == expected),
+                "StdDev {} not found in grammar", expected);
         }
-        // Should contain references to dynamic productions
-        assert!(indicator_productions.iter().any(|prod| prod.len() == 1 && prod[0] == "<sma_indicator>"));
-        assert!(indicator_productions.iter().any(|prod| prod.len() == 1 && prod[0] == "<ema_indicator>"));
-        assert!(indicator_productions.iter().any(|prod| prod.len() == 1 && prod[0] == "<rsi_indicator>"));
+        
+        // Check that specific indicator categories exist
+        assert!(grammar.rules.contains_key("<moving_average>"));
+        assert!(grammar.rules.contains_key("<bands_indicator>"));
+        assert!(grammar.rules.contains_key("<rsi_indicator>"));
+
+        // Check <moving_average> productions
+        let ma_productions = grammar.rules.get("<moving_average>").unwrap();
+        // SMA( <period> ) -> ["SMA(", "<period>", ")"]
+        assert!(ma_productions.iter().any(|prod| prod.len() == 3 && prod[0] == "SMA(" && prod[1] == "<period>" && prod[2] == ")"));
+        assert!(ma_productions.iter().any(|prod| prod.len() == 3 && prod[0] == "EMA(" && prod[1] == "<period>" && prod[2] == ")"));
+
+        // Check <bands_indicator> productions
+        let bands_productions = grammar.rules.get("<bands_indicator>").unwrap();
+        // BB_UPPER( <period> , <std_dev> ) -> ["BB_UPPER(", "<period>", ",", "<std_dev>", ")"]
+        assert!(bands_productions.iter().any(|prod| prod.len() == 5 && prod[0] == "BB_UPPER(" && prod[1] == "<period>" && prod[2] == "," && prod[3] == "<std_dev>" && prod[4] == ")"));
+        assert!(bands_productions.iter().any(|prod| prod.len() == 3 && prod[0] == "DC_UPPER(" && prod[1] == "<period>" && prod[2] == ")"));
     }
 }

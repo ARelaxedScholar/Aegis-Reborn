@@ -11,7 +11,7 @@ fn setup_engine() -> EvolutionEngine<'static> {
     // We use 'static lifetimes here because the benchmark requires objects
     // that live for the duration of the test.
     let config: &'static Config =
-        Box::leak(Box::new(Config::load(Path::new("config.toml")).unwrap()));
+        Box::leak(Box::new(Config::load(Path::new("quick_test.toml")).unwrap()));
     let grammar: &'static Grammar = Box::leak(Box::new(
         Grammar::new(Path::new(&config.grammar_file)).unwrap(),
     ));

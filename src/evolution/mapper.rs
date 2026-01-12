@@ -91,7 +91,7 @@ impl<'a> MappingContext<'a> {
                 self.indicator_buffer = None;
                 return Some(complete);
             } else {
-                // Assume this is the period number (or part of indicator)
+                // Assume this is the period number, comma, or std_dev
                 // Add to buffer (no space between tokens)
                 buf.push_str(terminal);
                 return None;
@@ -99,7 +99,16 @@ impl<'a> MappingContext<'a> {
         }
 
         // Not currently building an indicator, check if this starts one
-        if terminal.ends_with('(') && (terminal.starts_with("SMA") || terminal.starts_with("EMA") || terminal.starts_with("RSI")) {
+        if terminal.ends_with('(') && (
+            terminal.starts_with("SMA") || 
+            terminal.starts_with("EMA") || 
+            terminal.starts_with("RSI") ||
+            terminal.starts_with("BB_UPPER") ||
+            terminal.starts_with("BB_LOWER") ||
+            terminal.starts_with("DC_UPPER") ||
+            terminal.starts_with("DC_LOWER") ||
+            terminal.starts_with("DC_MIDDLE")
+        ) {
             // Start building an indicator
             self.indicator_buffer = Some(terminal.to_string());
             None

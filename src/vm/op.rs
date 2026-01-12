@@ -57,6 +57,11 @@ pub enum IndicatorType {
     Sma(u16),
     Rsi(u16),
     Ema(u16),
+    BbUpper(u16, u8),
+    BbLower(u16, u8),
+    DcUpper(u16),
+    DcLower(u16),
+    DcMiddle(u16),
 }
 
 /// Defines dynamic, relative constants calculated at runtime.

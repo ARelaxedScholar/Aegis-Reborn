@@ -8,11 +8,24 @@ use log::warn;
 /// Emits deprecation warning when old style is used.
 pub fn parse_indicator_terminal(terminal: &str) -> Option<IndicatorType> {
     lazy_static::lazy_static! {
-        static ref INDICATOR_REGEX: Regex = Regex::new(r"^(?P<name>SMA|RSI|EMA)\((?P<period>\d+)\)$").unwrap();
+        static ref INDICATOR_REGEX: Regex = Regex::new(r"^(?P<name>SMA|RSI|EMA|DC_UPPER|DC_LOWER|DC_MIDDLE)\((?P<period>\d+)\)$").unwrap();
+        static ref BB_REGEX: Regex = Regex::new(r"^(?P<name>BB_UPPER|BB_LOWER)\((?P<period>\d+),(?P<std_dev>\d+)\)$").unwrap();
         static ref OLD_STYLE_REGEX: Regex = Regex::new(r"^(?P<name>SMA|RSI|EMA)(?P<period>\d+)$").unwrap();
     }
 
-    // Try new style first
+    // Try BB style first (two args)
+    if let Some(caps) = BB_REGEX.captures(terminal) {
+        let name = caps.name("name").unwrap().as_str();
+        let period = caps.name("period").unwrap().as_str().parse::<u16>().ok()?;
+        let std_dev = caps.name("std_dev").unwrap().as_str().parse::<u8>().ok()?;
+        return match name {
+            "BB_UPPER" => Some(IndicatorType::BbUpper(period, std_dev)),
+            "BB_LOWER" => Some(IndicatorType::BbLower(period, std_dev)),
+            _ => None,
+        };
+    }
+
+    // Try standard single-arg style
     if let Some(caps) = INDICATOR_REGEX.captures(terminal) {
         let name = caps.name("name").unwrap().as_str();
         let period = caps.name("period").unwrap().as_str().parse::<u16>().ok()?;
@@ -20,6 +33,9 @@ pub fn parse_indicator_terminal(terminal: &str) -> Option<IndicatorType> {
             "SMA" => Some(IndicatorType::Sma(period)),
             "RSI" => Some(IndicatorType::Rsi(period)),
             "EMA" => Some(IndicatorType::Ema(period)),
+            "DC_UPPER" => Some(IndicatorType::DcUpper(period)),
+            "DC_LOWER" => Some(IndicatorType::DcLower(period)),
+            "DC_MIDDLE" => Some(IndicatorType::DcMiddle(period)),
             _ => None,
         };
     }

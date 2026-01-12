@@ -198,8 +198,7 @@ namespace QuantConnect.Algorithm.CSharp {{
             }}
         }}
     }}
-}}
-"#,
+}}"#,
             initial_cash = self.config.initial_cash.unwrap_or(10000.0),
             symbol = self.config.symbol,
             resolution = self.config.resolution,
@@ -234,8 +233,23 @@ namespace QuantConnect.Algorithm.CSharp {{
                 IndicatorType::Ema(period) => {
                     lines.push(format!("        self.ema{} = self.EMA(self.symbol, {})", period, period));
                 }
+                IndicatorType::BbUpper(period, std_dev) | IndicatorType::BbLower(period, std_dev) => {
+                    // We only need to init BB once per (period, std_dev) pair, but HashSet handles duplicates if keys are same.
+                    // However, BbUpper and BbLower are different keys. We should check if we already initialized this BB.
+                    // A simple way is to use a consistent naming convention: bb{period}_{std_dev}
+                    // Since we iterate over all dependencies, we might generate duplicate init lines if both Upper and Lower are used.
+                    // But Python allows overwriting self.bb = ... so it's fine, just redundant.
+                    // Better: Use a set to track initialized indicators within this function.
+                    lines.push(format!("        self.bb{}_{} = self.BB(self.symbol, {}, {})", period, std_dev, period, std_dev));
+                }
+                IndicatorType::DcUpper(period) | IndicatorType::DcLower(period) | IndicatorType::DcMiddle(period) => {
+                    lines.push(format!("        self.dc{} = self.DCH(self.symbol, {}, {})", period, period, period)); // DCH is Donchian Channel
+                }
             }
         }
+        // Remove duplicates (simple string dedup)
+        lines.sort();
+        lines.dedup();
         lines.join("\n")
     }
 
@@ -260,12 +274,26 @@ namespace QuantConnect.Algorithm.CSharp {{
                     fields.push(format!("        private ExponentialMovingAverage ema{};", period));
                     init_lines.push(format!("            ema{} = EMA(symbol, {});", period, period));
                 }
+                IndicatorType::BbUpper(period, std_dev) | IndicatorType::BbLower(period, std_dev) => {
+                    fields.push(format!("        private BollingerBands bb{}_{};", period, std_dev));
+                    init_lines.push(format!("            bb{}_{} = BB(symbol, {}, {});", period, std_dev, period, std_dev));
+                }
+                IndicatorType::DcUpper(period) | IndicatorType::DcLower(period) | IndicatorType::DcMiddle(period) => {
+                    fields.push(format!("        private DonchianChannel dc{};", period));
+                    init_lines.push(format!("            dc{} = DCH(symbol, {}, {});", period, period, period));
+                }
             }
         }
 
         if !fields.is_empty() && fields.len() > 1 {
             fields.insert(1, "".to_string()); // Empty line after symbol field
         }
+
+        // Dedup fields and init lines
+        fields.sort();
+        fields.dedup();
+        init_lines.sort();
+        init_lines.dedup();
 
         let fields_str = fields.join("\n");
         let init_str = init_lines.join("\n");
@@ -279,6 +307,8 @@ namespace QuantConnect.Algorithm.CSharp {{
                 IndicatorType::Sma(period) => *period as usize,
                 IndicatorType::Rsi(period) => *period as usize,
                 IndicatorType::Ema(period) => *period as usize,
+                IndicatorType::BbUpper(period, _) | IndicatorType::BbLower(period, _) => *period as usize,
+                IndicatorType::DcUpper(period) | IndicatorType::DcLower(period) | IndicatorType::DcMiddle(period) => *period as usize,
             })
             .max()
             .unwrap_or(20);
@@ -320,6 +350,11 @@ impl PythonCompiler {
                         IndicatorType::Sma(period) => format!("self.sma{}.current.value", period),
                         IndicatorType::Rsi(period) => format!("self.rsi{}.current.value", period),
                         IndicatorType::Ema(period) => format!("self.ema{}.current.value", period),
+                        IndicatorType::BbUpper(period, std_dev) => format!("self.bb{}_{}.upper_band.current.value", period, std_dev),
+                        IndicatorType::BbLower(period, std_dev) => format!("self.bb{}_{}.lower_band.current.value", period, std_dev),
+                        IndicatorType::DcUpper(period) => format!("self.dc{}.upper_band.current.value", period),
+                        IndicatorType::DcLower(period) => format!("self.dc{}.lower_band.current.value", period),
+                        IndicatorType::DcMiddle(period) => format!("((self.dc{}.upper_band.current.value + self.dc{}.lower_band.current.value) / 2.0)", period, period),
                     };
                     stack.push(expr);
                 }
@@ -475,6 +510,11 @@ impl CSharpCompiler {
                         IndicatorType::Sma(period) => format!("sma{}.Current.Value", period),
                         IndicatorType::Rsi(period) => format!("rsi{}.Current.Value", period),
                         IndicatorType::Ema(period) => format!("ema{}.Current.Value", period),
+                        IndicatorType::BbUpper(period, std_dev) => format!("bb{}_{}.UpperBand.Current.Value", period, std_dev),
+                        IndicatorType::BbLower(period, std_dev) => format!("bb{}_{}.LowerBand.Current.Value", period, std_dev),
+                        IndicatorType::DcUpper(period) => format!("dc{}.UpperBand.Current.Value", period),
+                        IndicatorType::DcLower(period) => format!("dc{}.LowerBand.Current.Value", period),
+                        IndicatorType::DcMiddle(period) => format!("((dc{}.UpperBand.Current.Value + dc{}.LowerBand.Current.Value) / 2.0)", period, period),
                     };
                     stack.push(expr);
                 }
@@ -581,15 +621,17 @@ impl CSharpCompiler {
         match dynamic_const {
             DynamicConstant::ClosePercent(pct) => {
                 let factor = 1.0 + (*pct as f64 / 100.0);
-                Ok(format!("data[symbol].Close * {}", factor))
+                Ok(format!("data[self.symbol].close * {}", factor))
             }
             DynamicConstant::SmaPercent(period, pct) => {
                 let factor = 1.0 + (*pct as f64 / 100.0);
-                Ok(format!("sma{}.Current.Value * {}", period, factor))
+                Ok(format!("self.sma{}.current.value * {}", period, factor))
             }
         }
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -816,5 +858,63 @@ mod tests {
         let csharp_code = csharp_result.unwrap();
         assert!(csharp_code.contains("mem0 = 5;"), "C# code missing mem0 assignment: {}", csharp_code);
         assert!(csharp_code.contains("mem1 = (mem0 + 3);"), "C# code missing mem1 assignment: {}", csharp_code);
+    }
+
+    #[test]
+    fn test_complex_indicators_transpilation() {
+        let mut programs = HashMap::new();
+        // Strategy using BB and DC
+        programs.insert(
+            "entry".to_string(),
+            vec![
+                Op::PushPrice(PriceType::Close),
+                Op::PushIndicator(IndicatorType::BbUpper(20, 2)),
+                Op::GreaterThan,
+                Op::PushPrice(PriceType::Close),
+                Op::PushIndicator(IndicatorType::DcLower(10)),
+                Op::LessThan,
+                Op::And,
+            ],
+        );
+        let strategy = Strategy { programs };
+
+        let config = TranspilerConfig {
+            symbol: "BTCUSD".to_string(),
+            resolution: "Daily".to_string(),
+            market: "crypto".to_string(),
+            initial_cash: Some(10000.0),
+            transaction_cost_pct: None,
+            slippage_pct: None,
+        };
+
+        let engine = TranspilerEngine::new(config);
+
+        // Test Python
+        let python_result = engine.to_python(&strategy);
+        assert!(python_result.is_ok());
+        let python_code = python_result.unwrap();
+        
+        // Check Init
+        assert!(python_code.contains("self.bb20_2 = self.BB(self.symbol, 20, 2)"));
+        assert!(python_code.contains("self.dc10 = self.DCH(self.symbol, 10, 10)"));
+        
+        // Check Logic
+        assert!(python_code.contains("self.bb20_2.upper_band.current.value"));
+        assert!(python_code.contains("self.dc10.lower_band.current.value"));
+
+        // Test C#
+        let csharp_result = engine.to_c_sharp(&strategy);
+        assert!(csharp_result.is_ok());
+        let csharp_code = csharp_result.unwrap();
+
+        // Check Fields & Init
+        assert!(csharp_code.contains("private BollingerBands bb20_2;"));
+        assert!(csharp_code.contains("bb20_2 = BB(symbol, 20, 2);"));
+        assert!(csharp_code.contains("private DonchianChannel dc10;"));
+        assert!(csharp_code.contains("dc10 = DCH(symbol, 10, 10);"));
+
+        // Check Logic
+        assert!(csharp_code.contains("bb20_2.UpperBand.Current.Value"));
+        assert!(csharp_code.contains("dc10.LowerBand.Current.Value"));
     }
 }
