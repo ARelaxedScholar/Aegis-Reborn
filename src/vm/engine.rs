@@ -177,7 +177,11 @@ impl VirtualMachine {
                                 count += 1;
                             }
                         }
-                        let val = if count >= *period as usize { sum } else { f64::NAN };
+                        let val = if count >= *period as usize {
+                            sum
+                        } else {
+                            f64::NAN
+                        };
                         self.push(val)?;
                     }
                 }
@@ -195,7 +199,9 @@ impl VirtualMachine {
                 }
                 Op::Return => break,
                 Op::StopLossMarker | Op::TakeProfitMarker | Op::SizeMarker => {
-                    return Err(VmError::InvalidOperation("Marker Op encountered during execution".to_string()));
+                    return Err(VmError::InvalidOperation(
+                        "Marker Op encountered during execution".to_string(),
+                    ));
                 }
             }
         }
@@ -241,16 +247,14 @@ mod tests {
             close: 100.0,
             indicators: HashMap::new(),
             rolling_sums: HashMap::new(),
-            history: VecDeque::from(vec![
-                OHLCV {
-                    timestamp: 0,
-                    open: 95.0,
-                    high: 105.0,
-                    low: 90.0,
-                    close: 100.0,
-                    volume: 0.0,
-                },
-            ]),
+            history: VecDeque::from(vec![OHLCV {
+                timestamp: 0,
+                open: 95.0,
+                high: 105.0,
+                low: 90.0,
+                close: 100.0,
+                volume: 0.0,
+            }]),
         }
     }
 
@@ -388,16 +392,14 @@ mod tests {
             close: 100.0,
             indicators: HashMap::new(),
             rolling_sums: HashMap::new(),
-            history: VecDeque::from(vec![
-                OHLCV {
-                    timestamp: 0,
-                    open: 95.0,
-                    high: 105.0,
-                    low: 90.0,
-                    close: 100.0,
-                    volume: 0.0,
-                },
-            ]),
+            history: VecDeque::from(vec![OHLCV {
+                timestamp: 0,
+                open: 95.0,
+                high: 105.0,
+                low: 90.0,
+                close: 100.0,
+                volume: 0.0,
+            }]),
         };
 
         // Test accessing close price
@@ -427,16 +429,14 @@ mod tests {
             close: 100.0,
             indicators: HashMap::new(),
             rolling_sums: HashMap::new(),
-            history: VecDeque::from(vec![
-                OHLCV {
-                    timestamp: 0,
-                    open: 95.0,
-                    high: 105.0,
-                    low: 90.0,
-                    close: 100.0,
-                    volume: 0.0,
-                },
-            ]),
+            history: VecDeque::from(vec![OHLCV {
+                timestamp: 0,
+                open: 95.0,
+                high: 105.0,
+                low: 90.0,
+                close: 100.0,
+                volume: 0.0,
+            }]),
         };
 
         // Calculate typical price: (high + low + close) / 3
@@ -504,16 +504,14 @@ mod tests {
             close: 20000.0,
             indicators: HashMap::new(),
             rolling_sums: HashMap::new(),
-            history: VecDeque::from(vec![
-                OHLCV {
-                    timestamp: 0,
-                    open: 95.0,
-                    high: 105.0,
-                    low: 90.0,
-                    close: 100.0,
-                    volume: 0.0,
-                },
-            ]),
+            history: VecDeque::from(vec![OHLCV {
+                timestamp: 0,
+                open: 95.0,
+                high: 105.0,
+                low: 90.0,
+                close: 100.0,
+                volume: 0.0,
+            }]),
         };
         context.indicators.insert(IndicatorType::Sma(20), 19500.0);
 
@@ -584,7 +582,7 @@ mod tests {
         // Expected result: 20
         let program = vec![
             PushConstant(5.0),
-            Jump(3), // jump to index 3 (PushConstant(20.0))
+            Jump(3),            // jump to index 3 (PushConstant(20.0))
             PushConstant(10.0), // skipped
             PushConstant(20.0),
             Return,
@@ -623,10 +621,10 @@ mod tests {
 
         // Test nested jumps
         let program4 = vec![
-            PushConstant(0.0), // condition false
-            JumpIfFalse(4), // if false jump to push 100
+            PushConstant(0.0),   // condition false
+            JumpIfFalse(4),      // if false jump to push 100
             PushConstant(200.0), // true branch
-            Jump(5), // skip false branch
+            Jump(5),             // skip false branch
             PushConstant(100.0), // false branch
             Return,
         ];
@@ -639,7 +637,7 @@ mod tests {
     fn test_historical_operations() {
         use crate::vm::op::Op::*;
         use crate::vm::op::PriceType::*;
-        
+
         // Create a context with 5 candles of history
         let mut vm = VirtualMachine::new();
         let context = VmContext {
@@ -650,11 +648,46 @@ mod tests {
             indicators: HashMap::new(),
             rolling_sums: HashMap::new(),
             history: VecDeque::from(vec![
-                OHLCV { timestamp: 4, open: 50.0, high: 55.0, low: 45.0, close: 52.0, volume: 0.0 }, // current (index 0)
-                OHLCV { timestamp: 3, open: 48.0, high: 53.0, low: 43.0, close: 50.0, volume: 0.0 }, // previous 1
-                OHLCV { timestamp: 2, open: 46.0, high: 51.0, low: 41.0, close: 48.0, volume: 0.0 }, // previous 2
-                OHLCV { timestamp: 1, open: 44.0, high: 49.0, low: 39.0, close: 46.0, volume: 0.0 }, // previous 3
-                OHLCV { timestamp: 0, open: 42.0, high: 47.0, low: 37.0, close: 44.0, volume: 0.0 }, // previous 4
+                OHLCV {
+                    timestamp: 4,
+                    open: 50.0,
+                    high: 55.0,
+                    low: 45.0,
+                    close: 52.0,
+                    volume: 0.0,
+                }, // current (index 0)
+                OHLCV {
+                    timestamp: 3,
+                    open: 48.0,
+                    high: 53.0,
+                    low: 43.0,
+                    close: 50.0,
+                    volume: 0.0,
+                }, // previous 1
+                OHLCV {
+                    timestamp: 2,
+                    open: 46.0,
+                    high: 51.0,
+                    low: 41.0,
+                    close: 48.0,
+                    volume: 0.0,
+                }, // previous 2
+                OHLCV {
+                    timestamp: 1,
+                    open: 44.0,
+                    high: 49.0,
+                    low: 39.0,
+                    close: 46.0,
+                    volume: 0.0,
+                }, // previous 3
+                OHLCV {
+                    timestamp: 0,
+                    open: 42.0,
+                    high: 47.0,
+                    low: 37.0,
+                    close: 44.0,
+                    volume: 0.0,
+                }, // previous 4
             ]),
         };
 
@@ -673,7 +706,11 @@ mod tests {
         // Test PushPrevious with offset 5 (beyond history) -> NaN
         let program = vec![PushPrevious(Close, 5)];
         let result = vm.execute(&program, &context).unwrap();
-        assert!(result.is_nan(), "Expected NaN for offset beyond history, got {}", result);
+        assert!(
+            result.is_nan(),
+            "Expected NaN for offset beyond history, got {}",
+            result
+        );
 
         // Test PushRollingSum with period 3 (sum of last 3 closes: 52 + 50 + 48 = 150)
         let program = vec![PushRollingSum(Close, 3)];
@@ -686,11 +723,11 @@ mod tests {
         // Test PushRollingSum with period 6 (beyond history) -> NaN
         let program = vec![PushRollingSum(Close, 6)];
         let result = vm.execute(&program, &context).unwrap();
-        assert!(result.is_nan(), "Expected NaN for period beyond history, got {}", result);
-
-
-
-
+        assert!(
+            result.is_nan(),
+            "Expected NaN for period beyond history, got {}",
+            result
+        );
 
         // Test different price types (Open)
         let program = vec![PushPrevious(Open, 1)];

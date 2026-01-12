@@ -212,7 +212,9 @@ impl Config {
                 resolution: transpiler.resolution.clone(),
                 market: transpiler.market.clone(),
                 initial_cash: transpiler.initial_cash.or(Some(self.metrics.initial_cash)),
-                transaction_cost_pct: transpiler.transaction_cost_pct.or(Some(self.metrics.transaction_cost_pct)),
+                transaction_cost_pct: transpiler
+                    .transaction_cost_pct
+                    .or(Some(self.metrics.transaction_cost_pct)),
                 slippage_pct: transpiler.slippage_pct.or(Some(self.metrics.slippage_pct)),
             }
         } else {

@@ -99,16 +99,16 @@ impl<'a> MappingContext<'a> {
         }
 
         // Not currently building an indicator, check if this starts one
-        if terminal.ends_with('(') && (
-            terminal.starts_with("SMA") || 
-            terminal.starts_with("EMA") || 
-            terminal.starts_with("RSI") ||
-            terminal.starts_with("BB_UPPER") ||
-            terminal.starts_with("BB_LOWER") ||
-            terminal.starts_with("DC_UPPER") ||
-            terminal.starts_with("DC_LOWER") ||
-            terminal.starts_with("DC_MIDDLE")
-        ) {
+        if terminal.ends_with('(')
+            && (terminal.starts_with("SMA")
+                || terminal.starts_with("EMA")
+                || terminal.starts_with("RSI")
+                || terminal.starts_with("BB_UPPER")
+                || terminal.starts_with("BB_LOWER")
+                || terminal.starts_with("DC_UPPER")
+                || terminal.starts_with("DC_LOWER")
+                || terminal.starts_with("DC_MIDDLE"))
+        {
             // Start building an indicator
             self.indicator_buffer = Some(terminal.to_string());
             None
@@ -173,23 +173,43 @@ impl<'a> GrammarBasedMapper<'a> {
         for op in bytecode {
             match op {
                 Op::EntryMarker => {
-                    self.save_program(&mut programs, &mut current_program_name, &mut current_program_code);
+                    self.save_program(
+                        &mut programs,
+                        &mut current_program_name,
+                        &mut current_program_code,
+                    );
                     current_program_name = Some("entry".to_string());
                 }
                 Op::ExitMarker => {
-                    self.save_program(&mut programs, &mut current_program_name, &mut current_program_code);
+                    self.save_program(
+                        &mut programs,
+                        &mut current_program_name,
+                        &mut current_program_code,
+                    );
                     current_program_name = Some("exit".to_string());
                 }
                 Op::StopLossMarker => {
-                    self.save_program(&mut programs, &mut current_program_name, &mut current_program_code);
+                    self.save_program(
+                        &mut programs,
+                        &mut current_program_name,
+                        &mut current_program_code,
+                    );
                     current_program_name = Some("stop_loss".to_string());
                 }
                 Op::TakeProfitMarker => {
-                    self.save_program(&mut programs, &mut current_program_name, &mut current_program_code);
+                    self.save_program(
+                        &mut programs,
+                        &mut current_program_name,
+                        &mut current_program_code,
+                    );
                     current_program_name = Some("take_profit".to_string());
                 }
                 Op::SizeMarker => {
-                    self.save_program(&mut programs, &mut current_program_name, &mut current_program_code);
+                    self.save_program(
+                        &mut programs,
+                        &mut current_program_name,
+                        &mut current_program_code,
+                    );
                     current_program_name = Some("position_sizing".to_string());
                 }
                 _ => {
@@ -197,13 +217,22 @@ impl<'a> GrammarBasedMapper<'a> {
                 }
             }
         }
-        
-        self.save_program(&mut programs, &mut current_program_name, &mut current_program_code);
+
+        self.save_program(
+            &mut programs,
+            &mut current_program_name,
+            &mut current_program_code,
+        );
 
         Ok(Strategy { programs })
     }
 
-    fn save_program(&self, programs: &mut HashMap<String, Vec<Op>>, name: &mut Option<String>, code: &mut Vec<Op>) {
+    fn save_program(
+        &self,
+        programs: &mut HashMap<String, Vec<Op>>,
+        name: &mut Option<String>,
+        code: &mut Vec<Op>,
+    ) {
         if let Some(n) = name.take() {
             if !code.is_empty() {
                 programs.insert(n, std::mem::take(code));
@@ -275,12 +304,12 @@ impl<'a> GrammarBasedMapper<'a> {
 
                     // Patch the THEN jump (JumpIfFalse) to point here + 1 (start of ELSE block)
                     if let Some(then_jump_idx) = context.jump_stack.pop() {
-                        let target = bytecode.len(); 
+                        let target = bytecode.len();
                         if let Some(Op::JumpIfFalse(t)) = bytecode.get_mut(then_jump_idx) {
                             *t = target;
                         }
                     }
-                    
+
                     // Push the ELSE jump index to stack so END_IF can patch it
                     context.jump_stack.push(jump_idx);
                 }
@@ -297,7 +326,7 @@ impl<'a> GrammarBasedMapper<'a> {
                 _ => {
                     // Handle indicator buffering for dynamic period indicators
                     let terminal_to_process = context.process_indicator_token(symbol);
-                    
+
                     if let Some(processed_terminal) = terminal_to_process {
                         if let Some(op) = self.terminal_to_op(&processed_terminal) {
                             bytecode.push(op);
@@ -448,12 +477,12 @@ mod tests {
         // The genome codons determine which period is chosen.
         // Since there are 3 period options, codon % 3 selects index.
         // We'll test each possible period.
-        
+
         // Number of non-terminal expansions: <start>, <entry_program>, <indicator>, <sma_indicator>, <period>
         // That's 5 codons consumed.
         // Codon indices 0-3 correspond to trivial choices (only one production).
         // Codon index 4 selects period (0->20, 1->50, 2->100).
-        
+
         // Period 20 (index 0)
         let genome_sma20: Genome = vec![0, 0, 0, 0, 0];
         let strategy_sma20 = mapper.map(&genome_sma20).unwrap();
@@ -522,36 +551,57 @@ mod tests {
     fn test_process_indicator_token() {
         let genome = vec![];
         let mut ctx = MappingContext::new(&genome);
-        
+
         // Start SMA indicator
         assert_eq!(ctx.process_indicator_token("SMA("), None);
         // Add period
         assert_eq!(ctx.process_indicator_token("20"), None);
         // Close parenthesis
-        assert_eq!(ctx.process_indicator_token(")"), Some("SMA(20)".to_string()));
-        
+        assert_eq!(
+            ctx.process_indicator_token(")"),
+            Some("SMA(20)".to_string())
+        );
+
         // Buffer should be cleared
         // Note: cannot directly access private field, but we can test by sending another token
         // and ensuring it's not buffered.
-        assert_eq!(ctx.process_indicator_token("CLOSE"), Some("CLOSE".to_string()));
-        
+        assert_eq!(
+            ctx.process_indicator_token("CLOSE"),
+            Some("CLOSE".to_string())
+        );
+
         // Test EMA
         assert_eq!(ctx.process_indicator_token("EMA("), None);
         assert_eq!(ctx.process_indicator_token("100"), None);
-        assert_eq!(ctx.process_indicator_token(")"), Some("EMA(100)".to_string()));
-        
+        assert_eq!(
+            ctx.process_indicator_token(")"),
+            Some("EMA(100)".to_string())
+        );
+
         // Test RSI
         assert_eq!(ctx.process_indicator_token("RSI("), None);
         assert_eq!(ctx.process_indicator_token("14"), None);
-        assert_eq!(ctx.process_indicator_token(")"), Some("RSI(14)".to_string()));
-        
+        assert_eq!(
+            ctx.process_indicator_token(")"),
+            Some("RSI(14)".to_string())
+        );
+
         // Old style indicator passes through
-        assert_eq!(ctx.process_indicator_token("SMA20"), Some("SMA20".to_string()));
-        assert_eq!(ctx.process_indicator_token("RSI14"), Some("RSI14".to_string()));
-        
+        assert_eq!(
+            ctx.process_indicator_token("SMA20"),
+            Some("SMA20".to_string())
+        );
+        assert_eq!(
+            ctx.process_indicator_token("RSI14"),
+            Some("RSI14".to_string())
+        );
+
         // Non-indicator terminals pass through
         assert_eq!(ctx.process_indicator_token("ADD"), Some("ADD".to_string()));
-        assert_eq!(ctx.process_indicator_token("123.45"), Some("123.45".to_string()));
+        assert_eq!(
+            ctx.process_indicator_token("123.45"),
+            Some("123.45".to_string())
+        );
     }
 
     #[test]
@@ -564,7 +614,7 @@ mod tests {
         ",
         );
         let mapper = GrammarBasedMapper::new(&grammar, 50, 256);
-        
+
         // SMA20 (choice 0)
         let genome = vec![0, 0, 0];
         let strategy = mapper.map(&genome).unwrap();

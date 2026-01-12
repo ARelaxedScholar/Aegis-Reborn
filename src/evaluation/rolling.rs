@@ -27,7 +27,7 @@ impl RollingWindow {
         }
         self.values.push_front(value);
         self.sum += value;
-        
+
         if self.values.len() > self.capacity {
             if let Some(removed) = self.values.pop_back() {
                 self.sum -= removed;
@@ -69,7 +69,10 @@ impl RollingWindowManager {
             last_values.insert((price_type.clone(), *period), f64::NAN);
         }
 
-        Self { windows, last_values }
+        Self {
+            windows,
+            last_values,
+        }
     }
 
     /// Updates all managed rolling windows with the next candle's data.
@@ -84,7 +87,8 @@ impl RollingWindowManager {
             let sum = window.push(price);
             // Store NaN until window is full (matching VM behavior)
             let value = if window.is_full() { sum } else { f64::NAN };
-            self.last_values.insert((price_type.clone(), *period), value);
+            self.last_values
+                .insert((price_type.clone(), *period), value);
         }
     }
 
@@ -99,41 +103,38 @@ impl RollingWindowManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::{HashMap, VecDeque};
     use crate::vm::engine::VmContext;
-    
+    use std::collections::{HashMap, VecDeque};
+
     #[test]
     fn test_rolling_window_basic() {
         let mut window = RollingWindow::new(3);
         assert_eq!(window.len(), 0);
         assert!(!window.is_full());
-        
+
         window.push(1.0);
         assert_eq!(window.current_sum(), 1.0);
         assert_eq!(window.len(), 1);
-        
+
         window.push(2.0);
         assert_eq!(window.current_sum(), 3.0);
-        
+
         window.push(3.0);
         assert_eq!(window.current_sum(), 6.0);
         assert!(window.is_full());
-        
+
         window.push(4.0);
         assert_eq!(window.current_sum(), 9.0); // 2+3+4
         assert_eq!(window.len(), 3);
     }
-    
+
     #[test]
     fn test_rolling_window_manager() {
         use crate::vm::op::PriceType;
-        
-        let required_sums = vec![
-            (PriceType::Close, 3),
-            (PriceType::Open, 2),
-        ];
+
+        let required_sums = vec![(PriceType::Close, 3), (PriceType::Open, 2)];
         let mut manager = RollingWindowManager::new(&required_sums);
-        
+
         // Create a simple candle
         let candle1 = OHLCV {
             timestamp: 0,
@@ -159,7 +160,7 @@ mod tests {
             close: 14.0,
             volume: 120.0,
         };
-        
+
         // Update with first candle
         manager.next(&candle1);
         // Windows not full yet, values should be NaN
@@ -173,23 +174,44 @@ mod tests {
             history: VecDeque::new(),
         };
         manager.populate_context(&mut context);
-        assert!(context.rolling_sums.get(&(PriceType::Close, 3)).unwrap().is_nan());
-        assert!(context.rolling_sums.get(&(PriceType::Open, 2)).unwrap().is_nan());
-        
+        assert!(context
+            .rolling_sums
+            .get(&(PriceType::Close, 3))
+            .unwrap()
+            .is_nan());
+        assert!(context
+            .rolling_sums
+            .get(&(PriceType::Open, 2))
+            .unwrap()
+            .is_nan());
+
         // Second candle
         manager.next(&candle2);
         manager.populate_context(&mut context);
         // Open window of period 2 should now be full: 10.0 + 11.0 = 21.0
-        assert_eq!(context.rolling_sums.get(&(PriceType::Open, 2)).unwrap(), &21.0);
+        assert_eq!(
+            context.rolling_sums.get(&(PriceType::Open, 2)).unwrap(),
+            &21.0
+        );
         // Close window period 3 still not full
-        assert!(context.rolling_sums.get(&(PriceType::Close, 3)).unwrap().is_nan());
-        
+        assert!(context
+            .rolling_sums
+            .get(&(PriceType::Close, 3))
+            .unwrap()
+            .is_nan());
+
         // Third candle
         manager.next(&candle3);
         manager.populate_context(&mut context);
         // Close window now full: 12 + 13 + 14 = 39.0
-        assert_eq!(context.rolling_sums.get(&(PriceType::Close, 3)).unwrap(), &39.0);
+        assert_eq!(
+            context.rolling_sums.get(&(PriceType::Close, 3)).unwrap(),
+            &39.0
+        );
         // Open window now contains 11 + 12 = 23.0 (shifted)
-        assert_eq!(context.rolling_sums.get(&(PriceType::Open, 2)).unwrap(), &23.0);
+        assert_eq!(
+            context.rolling_sums.get(&(PriceType::Open, 2)).unwrap(),
+            &23.0
+        );
     }
 }

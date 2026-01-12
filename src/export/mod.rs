@@ -141,7 +141,7 @@ pub fn read_export_from_json(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{GaConfig, MetricsConfig, DataConfig};
+    use crate::config::{DataConfig, GaConfig, MetricsConfig};
     use tempfile::NamedTempFile;
 
     fn create_test_config() -> ExportConfig {
@@ -194,12 +194,7 @@ mod tests {
         let individuals = create_test_individuals();
         let grammar = "<start> ::= ENTRY 1.0".to_string();
 
-        let export = ChampionExport::new(
-            individuals,
-            config,
-            grammar.clone(),
-            None,
-        );
+        let export = ChampionExport::new(individuals, config, grammar.clone(), None);
 
         assert_eq!(export.schema_version, "1.0.0");
         assert_eq!(export.champions.len(), 2);

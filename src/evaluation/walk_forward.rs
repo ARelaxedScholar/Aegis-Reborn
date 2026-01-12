@@ -622,17 +622,20 @@ mod tests {
     fn test_parameter_validation() {
         // Valid case
         assert!(
-            WalkForwardValidator::validate_parameters(20, 0.05, 10000.0, 252.0, 0.0, 0.0, 200).is_ok()
+            WalkForwardValidator::validate_parameters(20, 0.05, 10000.0, 252.0, 0.0, 0.0, 200)
+                .is_ok()
         );
 
         // Insufficient data
         assert!(
-            WalkForwardValidator::validate_parameters(20, 0.05, 10000.0, 252.0, 0.0, 0.0, 10).is_err()
+            WalkForwardValidator::validate_parameters(20, 0.05, 10000.0, 252.0, 0.0, 0.0, 10)
+                .is_err()
         );
 
         // Invalid parameters
         assert!(
-            WalkForwardValidator::validate_parameters(0, 0.05, 10000.0, 252.0, 0.0, 0.0, 200).is_err()
+            WalkForwardValidator::validate_parameters(0, 0.05, 10000.0, 252.0, 0.0, 0.0, 200)
+                .is_err()
         );
     }
 

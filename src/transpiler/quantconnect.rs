@@ -82,13 +82,21 @@ impl TranspilerEngine {
     }
 
     /// Compiles a single program (entry or exit) to Python expression
-    fn compile_program_to_python(&self, ops: &[Op], _program_name: &str) -> Result<String, TranspilerError> {
+    fn compile_program_to_python(
+        &self,
+        ops: &[Op],
+        _program_name: &str,
+    ) -> Result<String, TranspilerError> {
         let mut compiler = PythonCompiler::new();
         compiler.compile(ops)
     }
 
     /// Compiles a single program (entry or exit) to C# expression
-    fn compile_program_to_csharp(&self, ops: &[Op], _program_name: &str) -> Result<String, TranspilerError> {
+    fn compile_program_to_csharp(
+        &self,
+        ops: &[Op],
+        _program_name: &str,
+    ) -> Result<String, TranspilerError> {
         let mut compiler = CSharpCompiler::new();
         compiler.compile(ops)
     }
@@ -103,7 +111,8 @@ impl TranspilerEngine {
         let indicators_init = self.generate_python_indicators_init(dependencies);
         let warm_up_period = self.calculate_warm_up_period(dependencies);
 
-        format!(r#"from AlgorithmImports import *
+        format!(
+            r#"from AlgorithmImports import *
 
 class GoldenAegisAlgorithm(QCAlgorithm):
     def initialize(self):
@@ -157,7 +166,8 @@ class GoldenAegisAlgorithm(QCAlgorithm):
         let (indicator_fields, indicator_init) = self.generate_csharp_indicator_code(dependencies);
         let warm_up_period = self.calculate_warm_up_period(dependencies);
 
-        format!(r#"using System;
+        format!(
+            r#"using System;
 using QuantConnect.Algorithm;
 using QuantConnect.Data;
 using QuantConnect.Indicators;
@@ -207,7 +217,10 @@ namespace QuantConnect.Algorithm.CSharp {{
             indicator_init = indicator_init,
             entry_code = entry_code,
             exit_eval = if let Some(exit_code) = exit_code {
-                format!("private bool EvaluateExit(Slice data)\n        {{\n            {}\n        }}", exit_code)
+                format!(
+                    "private bool EvaluateExit(Slice data)\n        {{\n            {}\n        }}",
+                    exit_code
+                )
             } else {
                 "".to_string()
             },
@@ -225,25 +238,43 @@ namespace QuantConnect.Algorithm.CSharp {{
         for indicator in dependencies {
             match indicator {
                 IndicatorType::Sma(period) => {
-                    lines.push(format!("        self.sma{} = self.SMA(self.symbol, {})", period, period));
+                    lines.push(format!(
+                        "        self.sma{} = self.SMA(self.symbol, {})",
+                        period, period
+                    ));
                 }
                 IndicatorType::Rsi(period) => {
-                    lines.push(format!("        self.rsi{} = self.RSI(self.symbol, {})", period, period));
+                    lines.push(format!(
+                        "        self.rsi{} = self.RSI(self.symbol, {})",
+                        period, period
+                    ));
                 }
                 IndicatorType::Ema(period) => {
-                    lines.push(format!("        self.ema{} = self.EMA(self.symbol, {})", period, period));
+                    lines.push(format!(
+                        "        self.ema{} = self.EMA(self.symbol, {})",
+                        period, period
+                    ));
                 }
-                IndicatorType::BbUpper(period, std_dev) | IndicatorType::BbLower(period, std_dev) => {
+                IndicatorType::BbUpper(period, std_dev)
+                | IndicatorType::BbLower(period, std_dev) => {
                     // We only need to init BB once per (period, std_dev) pair, but HashSet handles duplicates if keys are same.
                     // However, BbUpper and BbLower are different keys. We should check if we already initialized this BB.
                     // A simple way is to use a consistent naming convention: bb{period}_{std_dev}
                     // Since we iterate over all dependencies, we might generate duplicate init lines if both Upper and Lower are used.
                     // But Python allows overwriting self.bb = ... so it's fine, just redundant.
                     // Better: Use a set to track initialized indicators within this function.
-                    lines.push(format!("        self.bb{}_{} = self.BB(self.symbol, {}, {})", period, std_dev, period, std_dev));
+                    lines.push(format!(
+                        "        self.bb{}_{} = self.BB(self.symbol, {}, {})",
+                        period, std_dev, period, std_dev
+                    ));
                 }
-                IndicatorType::DcUpper(period) | IndicatorType::DcLower(period) | IndicatorType::DcMiddle(period) => {
-                    lines.push(format!("        self.dc{} = self.DCH(self.symbol, {}, {})", period, period, period)); // DCH is Donchian Channel
+                IndicatorType::DcUpper(period)
+                | IndicatorType::DcLower(period)
+                | IndicatorType::DcMiddle(period) => {
+                    lines.push(format!(
+                        "        self.dc{} = self.DCH(self.symbol, {}, {})",
+                        period, period, period
+                    )); // DCH is Donchian Channel
                 }
             }
         }
@@ -254,7 +285,10 @@ namespace QuantConnect.Algorithm.CSharp {{
     }
 
     /// Generates C# indicator fields and initialization code
-    fn generate_csharp_indicator_code(&self, dependencies: &HashSet<IndicatorType>) -> (String, String) {
+    fn generate_csharp_indicator_code(
+        &self,
+        dependencies: &HashSet<IndicatorType>,
+    ) -> (String, String) {
         let mut fields = Vec::new();
         let mut init_lines = Vec::new();
 
@@ -263,24 +297,54 @@ namespace QuantConnect.Algorithm.CSharp {{
         for indicator in dependencies {
             match indicator {
                 IndicatorType::Sma(period) => {
-                    fields.push(format!("        private SimpleMovingAverage sma{};", period));
-                    init_lines.push(format!("            sma{} = SMA(symbol, {});", period, period));
+                    fields.push(format!(
+                        "        private SimpleMovingAverage sma{};",
+                        period
+                    ));
+                    init_lines.push(format!(
+                        "            sma{} = SMA(symbol, {});",
+                        period, period
+                    ));
                 }
                 IndicatorType::Rsi(period) => {
-                    fields.push(format!("        private RelativeStrengthIndex rsi{};", period));
-                    init_lines.push(format!("            rsi{} = RSI(symbol, {});", period, period));
+                    fields.push(format!(
+                        "        private RelativeStrengthIndex rsi{};",
+                        period
+                    ));
+                    init_lines.push(format!(
+                        "            rsi{} = RSI(symbol, {});",
+                        period, period
+                    ));
                 }
                 IndicatorType::Ema(period) => {
-                    fields.push(format!("        private ExponentialMovingAverage ema{};", period));
-                    init_lines.push(format!("            ema{} = EMA(symbol, {});", period, period));
+                    fields.push(format!(
+                        "        private ExponentialMovingAverage ema{};",
+                        period
+                    ));
+                    init_lines.push(format!(
+                        "            ema{} = EMA(symbol, {});",
+                        period, period
+                    ));
                 }
-                IndicatorType::BbUpper(period, std_dev) | IndicatorType::BbLower(period, std_dev) => {
-                    fields.push(format!("        private BollingerBands bb{}_{};", period, std_dev));
-                    init_lines.push(format!("            bb{}_{} = BB(symbol, {}, {});", period, std_dev, period, std_dev));
+                IndicatorType::BbUpper(period, std_dev)
+                | IndicatorType::BbLower(period, std_dev) => {
+                    fields.push(format!(
+                        "        private BollingerBands bb{}_{};",
+                        period, std_dev
+                    ));
+                    init_lines.push(format!(
+                        "            bb{}_{} = BB(symbol, {}, {});",
+                        period, std_dev, period, std_dev
+                    ));
                 }
-                IndicatorType::DcUpper(period) | IndicatorType::DcLower(period) | IndicatorType::DcMiddle(period) => {
+                IndicatorType::DcUpper(period)
+                | IndicatorType::DcLower(period)
+                | IndicatorType::DcMiddle(period) => {
                     fields.push(format!("        private DonchianChannel dc{};", period));
-                    init_lines.push(format!("            dc{} = DCH(symbol, {}, {});", period, period, period));
+                    init_lines.push(format!(
+                        "            dc{} = DCH(symbol, {}, {});",
+                        period, period, period
+                    ));
                 }
             }
         }
@@ -302,13 +366,18 @@ namespace QuantConnect.Algorithm.CSharp {{
 
     /// Calculates the required warm-up period based on indicator dependencies
     fn calculate_warm_up_period(&self, dependencies: &HashSet<IndicatorType>) -> usize {
-        let max_period = dependencies.iter()
+        let max_period = dependencies
+            .iter()
             .map(|indicator| match indicator {
                 IndicatorType::Sma(period) => *period as usize,
                 IndicatorType::Rsi(period) => *period as usize,
                 IndicatorType::Ema(period) => *period as usize,
-                IndicatorType::BbUpper(period, _) | IndicatorType::BbLower(period, _) => *period as usize,
-                IndicatorType::DcUpper(period) | IndicatorType::DcLower(period) | IndicatorType::DcMiddle(period) => *period as usize,
+                IndicatorType::BbUpper(period, _) | IndicatorType::BbLower(period, _) => {
+                    *period as usize
+                }
+                IndicatorType::DcUpper(period)
+                | IndicatorType::DcLower(period)
+                | IndicatorType::DcMiddle(period) => *period as usize,
             })
             .max()
             .unwrap_or(20);
@@ -332,7 +401,11 @@ impl PythonCompiler {
 
         for op in ops {
             match op {
-                Op::EntryMarker | Op::ExitMarker | Op::StopLossMarker | Op::TakeProfitMarker | Op::SizeMarker => continue,
+                Op::EntryMarker
+                | Op::ExitMarker
+                | Op::StopLossMarker
+                | Op::TakeProfitMarker
+                | Op::SizeMarker => continue,
                 Op::PushConstant(val) => {
                     stack.push(val.to_string());
                 }
@@ -369,7 +442,8 @@ impl PythonCompiler {
                     memory.insert(*idx, var_name);
                 }
                 Op::Load(idx) => {
-                    let var_name = memory.get(idx)
+                    let var_name = memory
+                        .get(idx)
                         .cloned()
                         .unwrap_or_else(|| format!("mem{}", idx));
                     stack.push(var_name);
@@ -390,14 +464,16 @@ impl PythonCompiler {
                     stack.push(format!("(1.0 if {} == 0.0 else 0.0)", val));
                 }
                 Op::PushPrevious(_, _) | Op::PushRollingSum(_, _) => {
-                    return Err(TranspilerError::UnsupportedOp(
-                        format!("Historical price op {:?} not yet supported in transpiler", op)
-                    ));
+                    return Err(TranspilerError::UnsupportedOp(format!(
+                        "Historical price op {:?} not yet supported in transpiler",
+                        op
+                    )));
                 }
                 Op::JumpIfFalse(_) | Op::Jump(_) | Op::Return => {
-                    return Err(TranspilerError::UnsupportedOp(
-                        format!("Control flow op {:?} not yet supported", op)
-                    ));
+                    return Err(TranspilerError::UnsupportedOp(format!(
+                        "Control flow op {:?} not yet supported",
+                        op
+                    )));
                 }
             }
         }
@@ -443,27 +519,24 @@ impl PythonCompiler {
         Ok(())
     }
 
-    fn apply_logical_and(
-        &self,
-        stack: &mut Vec<String>,
-    ) -> Result<(), TranspilerError> {
+    fn apply_logical_and(&self, stack: &mut Vec<String>) -> Result<(), TranspilerError> {
         let b = stack.pop().ok_or(TranspilerError::StackUnderflow)?;
         let a = stack.pop().ok_or(TranspilerError::StackUnderflow)?;
         stack.push(format!("(1.0 if ({} > 0.0) and ({} > 0.0) else 0.0)", a, b));
         Ok(())
     }
 
-    fn apply_logical_or(
-        &self,
-        stack: &mut Vec<String>,
-    ) -> Result<(), TranspilerError> {
+    fn apply_logical_or(&self, stack: &mut Vec<String>) -> Result<(), TranspilerError> {
         let b = stack.pop().ok_or(TranspilerError::StackUnderflow)?;
         let a = stack.pop().ok_or(TranspilerError::StackUnderflow)?;
         stack.push(format!("(1.0 if ({} > 0.0) or ({} > 0.0) else 0.0)", a, b));
         Ok(())
     }
 
-    fn translate_dynamic_constant(&self, dynamic_const: &DynamicConstant) -> Result<String, TranspilerError> {
+    fn translate_dynamic_constant(
+        &self,
+        dynamic_const: &DynamicConstant,
+    ) -> Result<String, TranspilerError> {
         match dynamic_const {
             DynamicConstant::ClosePercent(pct) => {
                 let factor = 1.0 + (*pct as f64 / 100.0);
@@ -492,7 +565,11 @@ impl CSharpCompiler {
 
         for op in ops {
             match op {
-                Op::EntryMarker | Op::ExitMarker | Op::StopLossMarker | Op::TakeProfitMarker | Op::SizeMarker => continue,
+                Op::EntryMarker
+                | Op::ExitMarker
+                | Op::StopLossMarker
+                | Op::TakeProfitMarker
+                | Op::SizeMarker => continue,
                 Op::PushConstant(val) => {
                     stack.push(val.to_string());
                 }
@@ -510,11 +587,22 @@ impl CSharpCompiler {
                         IndicatorType::Sma(period) => format!("sma{}.Current.Value", period),
                         IndicatorType::Rsi(period) => format!("rsi{}.Current.Value", period),
                         IndicatorType::Ema(period) => format!("ema{}.Current.Value", period),
-                        IndicatorType::BbUpper(period, std_dev) => format!("bb{}_{}.UpperBand.Current.Value", period, std_dev),
-                        IndicatorType::BbLower(period, std_dev) => format!("bb{}_{}.LowerBand.Current.Value", period, std_dev),
-                        IndicatorType::DcUpper(period) => format!("dc{}.UpperBand.Current.Value", period),
-                        IndicatorType::DcLower(period) => format!("dc{}.LowerBand.Current.Value", period),
-                        IndicatorType::DcMiddle(period) => format!("((dc{}.UpperBand.Current.Value + dc{}.LowerBand.Current.Value) / 2.0)", period, period),
+                        IndicatorType::BbUpper(period, std_dev) => {
+                            format!("bb{}_{}.UpperBand.Current.Value", period, std_dev)
+                        }
+                        IndicatorType::BbLower(period, std_dev) => {
+                            format!("bb{}_{}.LowerBand.Current.Value", period, std_dev)
+                        }
+                        IndicatorType::DcUpper(period) => {
+                            format!("dc{}.UpperBand.Current.Value", period)
+                        }
+                        IndicatorType::DcLower(period) => {
+                            format!("dc{}.LowerBand.Current.Value", period)
+                        }
+                        IndicatorType::DcMiddle(period) => format!(
+                            "((dc{}.UpperBand.Current.Value + dc{}.LowerBand.Current.Value) / 2.0)",
+                            period, period
+                        ),
                     };
                     stack.push(expr);
                 }
@@ -529,7 +617,8 @@ impl CSharpCompiler {
                     memory.insert(*idx, var_name);
                 }
                 Op::Load(idx) => {
-                    let var_name = memory.get(idx)
+                    let var_name = memory
+                        .get(idx)
                         .cloned()
                         .unwrap_or_else(|| format!("mem{}", idx));
                     stack.push(var_name);
@@ -550,14 +639,16 @@ impl CSharpCompiler {
                     stack.push(format!("({} == 0.0 ? 1.0 : 0.0)", val));
                 }
                 Op::PushPrevious(_, _) | Op::PushRollingSum(_, _) => {
-                    return Err(TranspilerError::UnsupportedOp(
-                        format!("Historical price op {:?} not yet supported in transpiler", op)
-                    ));
+                    return Err(TranspilerError::UnsupportedOp(format!(
+                        "Historical price op {:?} not yet supported in transpiler",
+                        op
+                    )));
                 }
                 Op::JumpIfFalse(_) | Op::Jump(_) | Op::Return => {
-                    return Err(TranspilerError::UnsupportedOp(
-                        format!("Control flow op {:?} not yet supported", op)
-                    ));
+                    return Err(TranspilerError::UnsupportedOp(format!(
+                        "Control flow op {:?} not yet supported",
+                        op
+                    )));
                 }
             }
         }
@@ -617,7 +708,10 @@ impl CSharpCompiler {
         Ok(())
     }
 
-    fn translate_dynamic_constant(&self, dynamic_const: &DynamicConstant) -> Result<String, TranspilerError> {
+    fn translate_dynamic_constant(
+        &self,
+        dynamic_const: &DynamicConstant,
+    ) -> Result<String, TranspilerError> {
         match dynamic_const {
             DynamicConstant::ClosePercent(pct) => {
                 let factor = 1.0 + (*pct as f64 / 100.0);
@@ -630,8 +724,6 @@ impl CSharpCompiler {
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -786,11 +878,17 @@ mod tests {
 
         // Check that evaluate_entry method contains clean expression
         let entry_method_start = python_code.find("def evaluate_entry").unwrap();
-        let entry_method_end = python_code[entry_method_start..].find("\n    def").unwrap_or(python_code[entry_method_start..].len());
+        let entry_method_end = python_code[entry_method_start..]
+            .find("\n    def")
+            .unwrap_or(python_code[entry_method_start..].len());
         let entry_method = &python_code[entry_method_start..entry_method_start + entry_method_end];
 
         // Should not contain temp variable assignments
-        assert!(!entry_method.contains("temp"), "Python output contains temp variables: {}", entry_method);
+        assert!(
+            !entry_method.contains("temp"),
+            "Python output contains temp variables: {}",
+            entry_method
+        );
         // Should contain the clean comparison
         assert!(entry_method.contains("data[self.symbol].close"));
         assert!(entry_method.contains("self.sma20.current.value"));
@@ -802,11 +900,17 @@ mod tests {
 
         // Check that EvaluateEntry method contains clean expression
         let entry_method_start = csharp_code.find("private bool EvaluateEntry").unwrap();
-        let entry_method_end = csharp_code[entry_method_start..].find("\n        private").unwrap_or(csharp_code[entry_method_start..].len());
+        let entry_method_end = csharp_code[entry_method_start..]
+            .find("\n        private")
+            .unwrap_or(csharp_code[entry_method_start..].len());
         let entry_method = &csharp_code[entry_method_start..entry_method_start + entry_method_end];
 
         // Should not contain temp variable declarations
-        assert!(!entry_method.contains("var temp"), "C# output contains temp variables: {}", entry_method);
+        assert!(
+            !entry_method.contains("var temp"),
+            "C# output contains temp variables: {}",
+            entry_method
+        );
         // Should contain the clean comparison with proper ternary
         assert!(entry_method.contains("data[symbol].Close"));
         assert!(entry_method.contains("sma20.Current.Value"));
@@ -850,14 +954,30 @@ mod tests {
         assert!(python_result.is_ok());
         let python_code = python_result.unwrap();
         // Note: 5.0.to_string() = "5", 3.0.to_string() = "3"
-        assert!(python_code.contains("mem0 = 5"), "Python code missing mem0 assignment: {}", python_code);
-        assert!(python_code.contains("mem1 = (mem0 + 3)"), "Python code missing mem1 assignment: {}", python_code);
+        assert!(
+            python_code.contains("mem0 = 5"),
+            "Python code missing mem0 assignment: {}",
+            python_code
+        );
+        assert!(
+            python_code.contains("mem1 = (mem0 + 3)"),
+            "Python code missing mem1 assignment: {}",
+            python_code
+        );
 
         let csharp_result = engine.to_c_sharp(&strategy);
         assert!(csharp_result.is_ok());
         let csharp_code = csharp_result.unwrap();
-        assert!(csharp_code.contains("mem0 = 5;"), "C# code missing mem0 assignment: {}", csharp_code);
-        assert!(csharp_code.contains("mem1 = (mem0 + 3);"), "C# code missing mem1 assignment: {}", csharp_code);
+        assert!(
+            csharp_code.contains("mem0 = 5;"),
+            "C# code missing mem0 assignment: {}",
+            csharp_code
+        );
+        assert!(
+            csharp_code.contains("mem1 = (mem0 + 3);"),
+            "C# code missing mem1 assignment: {}",
+            csharp_code
+        );
     }
 
     #[test]
@@ -893,11 +1013,11 @@ mod tests {
         let python_result = engine.to_python(&strategy);
         assert!(python_result.is_ok());
         let python_code = python_result.unwrap();
-        
+
         // Check Init
         assert!(python_code.contains("self.bb20_2 = self.BB(self.symbol, 20, 2)"));
         assert!(python_code.contains("self.dc10 = self.DCH(self.symbol, 10, 10)"));
-        
+
         // Check Logic
         assert!(python_code.contains("self.bb20_2.upper_band.current.value"));
         assert!(python_code.contains("self.dc10.lower_band.current.value"));

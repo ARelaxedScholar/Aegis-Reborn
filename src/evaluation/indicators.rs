@@ -2,10 +2,10 @@ use crate::data::OHLCV;
 use crate::vm::engine::VmContext;
 use crate::vm::op::IndicatorType;
 use std::collections::HashMap;
-use ta::indicators::{BollingerBands, ExponentialMovingAverage, RelativeStrengthIndex, SimpleMovingAverage};
+use ta::indicators::{
+    BollingerBands, ExponentialMovingAverage, RelativeStrengthIndex, SimpleMovingAverage,
+};
 use ta::Next;
-
-
 
 /// Simple Donchian Channel implementation
 struct DonchianChannel {
@@ -58,25 +58,39 @@ impl IndicatorManager {
         for ind in required_indicators {
             match ind {
                 IndicatorType::Sma(p) => {
-                    smas.entry(*p).or_insert_with(|| SimpleMovingAverage::new(*p as usize).unwrap());
+                    smas.entry(*p)
+                        .or_insert_with(|| SimpleMovingAverage::new(*p as usize).unwrap());
                 }
                 IndicatorType::Ema(p) => {
-                    emas.entry(*p).or_insert_with(|| ExponentialMovingAverage::new(*p as usize).unwrap());
+                    emas.entry(*p)
+                        .or_insert_with(|| ExponentialMovingAverage::new(*p as usize).unwrap());
                 }
                 IndicatorType::Rsi(p) => {
-                    rsis.entry(*p).or_insert_with(|| RelativeStrengthIndex::new(*p as usize).unwrap());
+                    rsis.entry(*p)
+                        .or_insert_with(|| RelativeStrengthIndex::new(*p as usize).unwrap());
                 }
                 IndicatorType::BbUpper(p, s) | IndicatorType::BbLower(p, s) => {
-                    bbs.entry((*p, *s)).or_insert_with(|| BollingerBands::new(*p as usize, *s as f64).unwrap());
+                    bbs.entry((*p, *s))
+                        .or_insert_with(|| BollingerBands::new(*p as usize, *s as f64).unwrap());
                 }
-                IndicatorType::DcUpper(p) | IndicatorType::DcLower(p) | IndicatorType::DcMiddle(p) => {
-                    dcs.entry(*p).or_insert_with(|| DonchianChannel::new(*p as usize));
+                IndicatorType::DcUpper(p)
+                | IndicatorType::DcLower(p)
+                | IndicatorType::DcMiddle(p) => {
+                    dcs.entry(*p)
+                        .or_insert_with(|| DonchianChannel::new(*p as usize));
                 }
             }
             last_values.insert(ind.clone(), 0.0);
         }
 
-        Self { smas, emas, rsis, bbs, dcs, last_values }
+        Self {
+            smas,
+            emas,
+            rsis,
+            bbs,
+            dcs,
+            last_values,
+        }
     }
 
     /// Updates all managed indicators with the next candle's data and stores the results.
@@ -97,8 +111,10 @@ impl IndicatorManager {
         }
         for ((p, s), bb) in &mut self.bbs {
             let out = bb.next(close);
-            self.last_values.insert(IndicatorType::BbUpper(*p, *s), out.upper);
-            self.last_values.insert(IndicatorType::BbLower(*p, *s), out.lower);
+            self.last_values
+                .insert(IndicatorType::BbUpper(*p, *s), out.upper);
+            self.last_values
+                .insert(IndicatorType::BbLower(*p, *s), out.lower);
         }
         for (p, dc) in &mut self.dcs {
             let (max, min, mid) = dc.next(close);
