@@ -111,16 +111,17 @@ We are building this system in three distinct phases to manage complexity and en
 
 ### Current Progress & Next Steps
 
-The **Crawl** phase is now complete!!! We have successfully built and tested:
-*   A high-performance **Bytecode Virtual Machine (VM)** for strategy execution.
-*   A robust **Data Pipeline** and **Backtesting Harness**.
-*   The **Grammar-to-Bytecode Compiler (`Mapper`)**.
-*   The core **`EvolutionEngine`**, which is already discovering non-trivial, logical strategies.
+The **Crawl** phase is complete, and we are deep into the **Walk** phase. We have successfully implemented:
+*   **Complex Indicators:** Bollinger Bands and Donchian Channels are now evolvable.
+*   **Risk Management:** Strategies now evolve dynamic Stop-Loss and Take-Profit levels.
+*   **Position Sizing:** The engine now supports variable capital allocation.
+*   **Performance Optimization:** The `IndicatorManager` has been refactored for high-speed evolution.
 
-The final and most critical task of the Crawl phase remains:
-The crucible is implemented and we even got a semantically meaningful candidate quite quickly!
+The system is now capable of discovering sophisticated strategies that go beyond simple entry/exit rules.
+
+The original "Crawl" phase candidate is still a great benchmark:
 ```if the ClosePercent is 1% above the SMA(100) [can be understood as the Close price is 1% above the SMA of 100 periods, which indicate strong upward trend, get in the trade; If the RSI(14) <= 50  you leave, 50 is generally considered neutral (neither oversold, nor overbought.) So leave when the direction of the market is uncertain, this makes sense.```
-Gave a smoothed Calmar ratio of 2.7709 (quite impressive) and 0.667 Sharpe Ratio on the Hold Out set (nothing crazy, but still quite happy the algo generated a semantically meaningful strategy.)
+Gave a smoothed Calmar ratio of 2.7709 (quite impressive) and 0.667 Sharpe Ratio on the Hold Out set.
 <img width="2036" height="1088" alt="image" src="https://github.com/user-attachments/assets/e90a4b6f-db74-47ff-a1bd-7a9e708af898" />
 
 ---
@@ -144,15 +145,18 @@ Gave a smoothed Calmar ratio of 2.7709 (quite impressive) and 0.667 Sharpe Ratio
 #### **Phase 2: WALK - The Sophisticated Trader**
 *   **Objective:** Enhance the engine to evolve more complex, realistic, and risk-managed strategies.
 *   **Key Features / Milestones:**
-    *   **Grammar Expansion I (Advanced Logic):**
+    *   `[✅]` **Grammar Expansion I (Advanced Logic):**
         *   Implement nested `IF/THEN/ELSE` expressions.
         *   Upgrade the `Mapper` with the **back-patching** algorithm to handle forward jumps.
-    *   **Grammar Expansion II (Risk Management):**
+    *   `[✅]` **Grammar Expansion II (Risk Management):**
         *   Introduce `<arithmetic_expr>`-based programs for **Stop-Loss** and **Take-Profit**.
         *   Upgrade the `Backtester` to handle and track these dynamic price-level targets.
-    *   **Grammar Expansion III (Capital Allocation):**
+    *   `[✅]` **Grammar Expansion III (Capital Allocation):**
         *   Introduce an evolvable **Position Sizing** program.
         *   Upgrade the `Portfolio` model to handle variable trade sizes.
+    *   `[✅]` **Complex Indicators:**
+        *   Added **Bollinger Bands** (Upper, Lower) and **Donchian Channels** (Upper, Lower, Middle).
+        *   Implemented efficient, deduplicated calculation logic in `IndicatorManager`.
     *   **Evolutionary Tuning:**
         *   Implement more advanced **genetic operators** (e.g., chunk mutation, program-level crossover).
         *   Implement **opcode-weighted parsimony pressure** and other advanced diagnostics (e.g., diversity monitoring).
